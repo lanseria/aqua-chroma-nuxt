@@ -41,9 +41,22 @@ function handleScroll() {
 }
 
 // 调试工具的状态
-const debugTimestampInput = ref('1760685000')
+const debugTimestampInput = ref('')
 const isDebugging = ref(false)
 
+// --- 一个可复用的函数，用于显示调试弹窗 ---
+function showDebugDetails(resultItem: AnalysisResult) {
+  Modal.info({
+    title: '分析结果详情',
+    content: () => h(DebugResultViewer, { result: resultItem, apiUrl }),
+    width: '900px',
+    modalClass: 'debug-result-modal',
+    titleAlign: 'start',
+    maskClosable: true,
+  })
+}
+
+// 优化 handleTriggerDebug 函数，让它调用新的弹窗函数
 async function handleTriggerDebug() {
   if (!debugTimestampInput.value) {
     Message.warning('请输入有效的时间戳')
@@ -56,22 +69,11 @@ async function handleTriggerDebug() {
       Message.error('时间格式无效，请输入 Unix 时间戳')
       return
     }
-    // 注意：这里的 result 是后端返回的完整对象 { code, data, msg }
-    const result = await analysisStore.triggerDebugAnalysis(timestamp)
-    if (result) {
-      // --- 这里是优化后的核心代码 ---
-      Modal.info({
-        title: '调试分析结果',
-        // 使用 h() 渲染我们的组件，并将 result.data 作为 prop 传入
-        content: () => h(DebugResultViewer, { result, apiUrl }),
-        // 调整弹窗宽度以适应更多内容
-        width: '900px',
-        // 增加一个自定义类，方便调整内部滚动条样式
-        modalClass: 'debug-result-modal',
-        titleAlign: 'start',
-        // 弹窗默认有关闭按钮，我们也可以让它点击遮罩层关闭
-        maskClosable: true,
-      })
+    // 注意：这里的 result 是后端返回的 data 部分
+    const resultData = await analysisStore.triggerDebugAnalysis(timestamp)
+    if (resultData) {
+      // 调用我们新创建的通用弹窗函数
+      showDebugDetails(resultData)
     }
   }
   finally {
@@ -97,7 +99,7 @@ onUnmounted(() => {
 <template>
   <div class="p-4 sm:p-6">
     <div class="mb-6 space-y-4">
-      <TrendChart :results="results" />
+      <TrendChart :results="results" @request-debug="showDebugDetails" />
 
       <div class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-2 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
         <span class="font-medium">调试工具:</span>
