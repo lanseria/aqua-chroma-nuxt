@@ -1,4 +1,10 @@
 packages: []
+catalog:
+  '@types/node': ^24.9.2
+  dayjs-nuxt: ^2.1.11
+  echarts: ^6.0.0
+  nuxt-echarts: ^1.0.1
+  vue-echarts: ^8.0.1
 catalogs:
   build:
     '@nuxt/devtools': ^3.0.0-beta.2

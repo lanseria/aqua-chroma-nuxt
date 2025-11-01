@@ -9,6 +9,9 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@vite-pwa/nuxt',
     '@nuxt/eslint',
+    'nuxt-echarts',
+    'dayjs-nuxt',
+    'arco-design-nuxt-module',
   ],
 
   devtools: {
@@ -17,7 +20,6 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      viewport: 'width=device-width,initial-scale=1',
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
@@ -37,19 +39,19 @@ export default defineNuxtConfig({
     classSuffix: '',
   },
 
-  future: {
-    compatibilityVersion: 4,
+  runtimeConfig: {
+    public: {
+      apiUrl: '', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+    },
   },
 
   experimental: {
-    // when using generate, payload js assets included in sw precache manifest
-    // but missing on offline, disabling extraction it until fixed
     payloadExtraction: false,
     renderJsonPayloads: true,
     typedPages: true,
   },
 
-  compatibilityDate: '2024-08-14',
+  compatibilityDate: '2025-11-01',
 
   nitro: {
     esbuild: {
@@ -60,10 +62,13 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
       routes: ['/'],
-      ignore: ['/hi'],
+    },
+    routeRules: {
+      '/api/**': {
+        proxy: 'http://localhost:8000/**',
+      },
     },
   },
-
   eslint: {
     config: {
       standalone: false,
