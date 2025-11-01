@@ -1,2 +1,2 @@
-export const appName = 'Vitesse for Nuxt 4'
-export const appDescription = 'Vitesse for Nuxt 4'
+export const appName = 'Aqua Chroma 海蓝之心监控'
+export const appDescription = '海蓝之心监控'

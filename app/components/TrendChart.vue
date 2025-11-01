@@ -1,16 +1,5 @@
 <script lang="ts" setup>
 import type { AnalysisResult } from '~/stores/analysis'
-import { LineChart } from 'echarts/charts'
-import {
-  DataZoomComponent,
-  GridComponent,
-  TitleComponent,
-  ToolboxComponent,
-  TooltipComponent,
-} from 'echarts/components'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import VChart from 'vue-echarts'
 
 const props = defineProps<{
   results: AnalysisResult[]
@@ -18,18 +7,10 @@ const props = defineProps<{
 
 const dayjs = useDayjs()
 
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  ToolboxComponent,
-  DataZoomComponent,
-])
+const colorMode = useColorMode()
+provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
 
 const chartOption = computed(() => {
-  // --- 修改点：过滤 null 值和 status，并按时间升序 ---
   const chartData = props.results
     .filter(r => r.status === 'completed' && r.sea_blueness !== null)
     .sort((a, b) => a.timestamp - b.timestamp)
@@ -97,6 +78,6 @@ const chartOption = computed(() => {
 
 <template>
   <div class="p-4 border border-gray-200 rounded-lg bg-white h-400px w-full shadow-sm dark:border-gray-700 dark:bg-gray-800">
-    <VChart :option="chartOption" autoresize />
+    <VChartFull :option="chartOption" autoresize />
   </div>
 </template>

@@ -44,7 +44,6 @@ export default defineNuxtConfig({
       apiUrl: '', // can be overridden by NUXT_PUBLIC_API_URL environment variable
     },
   },
-
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
@@ -68,6 +67,18 @@ export default defineNuxtConfig({
         proxy: 'http://localhost:8000/**',
       },
     },
+  },
+
+  echarts: {
+    renderer: ['canvas'],
+    charts: ['LineChart'],
+    components: [
+      'TitleComponent',
+      'TooltipComponent',
+      'GridComponent',
+      'ToolboxComponent',
+      'DataZoomComponent',
+    ],
   },
   eslint: {
     config: {
