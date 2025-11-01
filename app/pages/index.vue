@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import DebugResultViewer from '~/components/DebugResultViewer.vue'
 import { useAnalysisStore } from '~/stores/analysis'
 
-const dayjs = useDayjs()
+// URL
+const runtimeConfig = useRuntimeConfig()
+const apiUrl = runtimeConfig.public.apiUrl
 
 const analysisStore = useAnalysisStore()
 const { results } = storeToRefs(analysisStore)
@@ -38,7 +41,7 @@ function handleScroll() {
 }
 
 // 调试工具的状态
-const debugTimestampInput = ref('')
+const debugTimestampInput = ref('1760685000')
 const isDebugging = ref(false)
 
 async function handleTriggerDebug() {
@@ -48,18 +51,26 @@ async function handleTriggerDebug() {
   }
   isDebugging.value = true
   try {
-    const timestamp = dayjs(debugTimestampInput.value).valueOf()
+    const timestamp = +debugTimestampInput.value
     if (Number.isNaN(timestamp)) {
-      Message.error('时间格式无效，请输入如 "2023-10-27 10:00:00" 的格式')
+      Message.error('时间格式无效，请输入 Unix 时间戳')
       return
     }
+    // 注意：这里的 result 是后端返回的完整对象 { code, data, msg }
     const result = await analysisStore.triggerDebugAnalysis(timestamp)
     if (result) {
-      // 使用 Arco Modal 显示结果
+      // --- 这里是优化后的核心代码 ---
       Modal.info({
         title: '调试分析结果',
-        content: () => h('pre', { class: 'whitespace-pre-wrap break-all' }, JSON.stringify(result, null, 2)),
-        width: '600px',
+        // 使用 h() 渲染我们的组件，并将 result.data 作为 prop 传入
+        content: () => h(DebugResultViewer, { result, apiUrl }),
+        // 调整弹窗宽度以适应更多内容
+        width: '900px',
+        // 增加一个自定义类，方便调整内部滚动条样式
+        modalClass: 'debug-result-modal',
+        titleAlign: 'start',
+        // 弹窗默认有关闭按钮，我们也可以让它点击遮罩层关闭
+        maskClosable: true,
       })
     }
   }
@@ -92,7 +103,7 @@ onUnmounted(() => {
         <span class="font-medium">调试工具:</span>
         <AInput
           v-model="debugTimestampInput"
-          placeholder="输入时间戳 (如 2023-10-27 10:00)"
+          placeholder="输入时间戳1761978000"
           class="w-60"
         />
         <AButton type="primary" :loading="isDebugging" @click="handleTriggerDebug">
@@ -126,3 +137,11 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style>
+/* 添加一个全局样式来处理弹窗内容溢出时出现滚动条 */
+.debug-result-modal .arco-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+</style>

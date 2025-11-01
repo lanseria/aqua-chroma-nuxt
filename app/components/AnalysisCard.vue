@@ -7,7 +7,7 @@ const props = defineProps<{
 
 const dayjs = useDayjs()
 
-// 获取 GIS 服务器 URL
+// URL
 const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
 
