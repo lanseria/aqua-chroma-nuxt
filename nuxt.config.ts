@@ -42,7 +42,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiUrl: 'http://aqua-chroma.sharee.top', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+      apiUrl: 'https://aqua-chroma.sharee.top', // can be overridden by NUXT_PUBLIC_API_URL environment variable
     },
   },
   experimental: {
@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     },
     routeRules: {
       '/api/**': {
-        proxy: `${env.NUXT_PUBLIC_API_URL || 'http://aqua-chroma.sharee.top'}/**`,
+        proxy: `${env.NUXT_PUBLIC_API_URL || 'https://aqua-chroma.sharee.top'}/**`,
       },
     },
   },

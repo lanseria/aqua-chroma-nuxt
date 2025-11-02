@@ -4,7 +4,7 @@ import { errorInterceptor } from './errorInterceptors'
 import { requestInterceptor } from './requestInterceptors'
 import { responseInterceptor } from './responseInterceptors'
 
-export const BASE_URL = import.meta.env.DEV ? '/api' : 'http://aqua-chroma.sharee.top'
+export const BASE_URL = import.meta.env.DEV ? '/api' : 'https://aqua-chroma.sharee.top'
 
 const baseURL = BASE_URL
 
