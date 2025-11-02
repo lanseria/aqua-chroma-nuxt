@@ -88,9 +88,9 @@ function selectTimestamp() {
       </div>
       <div>
         <p class="text-xs text-gray-500 mb-1 text-center">
-          云层掩码
+          蓝色面积
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/04_cloud_mask.png`" alt="Cloud Mask" class="border rounded-md aspect-square object-cover dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/06_final_blue_ocean_mask.png`" alt="Cloud Mask" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
     </div>
   </div>
