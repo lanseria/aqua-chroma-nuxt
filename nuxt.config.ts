@@ -1,3 +1,4 @@
+import { env } from 'node:process'
 import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
 
@@ -41,7 +42,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiUrl: '', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+      apiUrl: 'http://aqua-chroma.sharee.top', // can be overridden by NUXT_PUBLIC_API_URL environment variable
     },
   },
   experimental: {
@@ -64,7 +65,7 @@ export default defineNuxtConfig({
     },
     routeRules: {
       '/api/**': {
-        proxy: 'http://localhost:8000/**',
+        proxy: `${env.NUXT_PUBLIC_API_URL || 'http://aqua-chroma.sharee.top'}/**`,
       },
     },
   },

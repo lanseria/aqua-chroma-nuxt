@@ -67,7 +67,7 @@ const formattedData = computed(() => [
             <img
               :src="`${apiUrl}/${result.output_directory}/${filename}`"
               :alt="filename"
-              class="h-auto w-full transition-transform duration-300 object-cover hover:scale-105"
+              class="w-full aspect-square transition-transform duration-300 object-cover hover:scale-105"
             >
           </a>
           <p class="text-xs text-gray-600 p-1.5 text-center bg-gray-50 dark:text-gray-400 dark:bg-gray-800">
