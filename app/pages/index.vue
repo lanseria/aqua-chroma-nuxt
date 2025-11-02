@@ -43,17 +43,18 @@ function handleScroll() {
 // 调试工具的状态
 const debugTimestampInput = ref('')
 const isDebugging = ref(false)
+const debugToolRef = ref<HTMLElement | null>(null) // 用于获取调试工具DOM元素
 
-// --- 一个可复用的函数，用于显示调试弹窗 ---
-function showDebugDetails(resultItem: AnalysisResult) {
-  Modal.info({
-    title: '分析结果详情',
-    content: () => h(DebugResultViewer, { result: resultItem, apiUrl }),
-    width: '900px',
-    modalClass: 'debug-result-modal',
-    titleAlign: 'start',
-    maskClosable: true,
-  })
+function handleTimestampSelected(timestamp: number) {
+  // 将数字时间戳转换为字符串并赋值给输入框的 v-model
+  debugTimestampInput.value = String(timestamp)
+
+  // 友好交互：滚动到页面顶部，让用户看到输入框的变化
+  // 使用 behavior: 'smooth' 实现平滑滚动
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // 也可以让输入框聚焦，但平滑滚动体验更好
+  // debugToolRef.value?.querySelector('input')?.focus()
 }
 
 // 优化 handleTriggerDebug 函数，让它调用新的弹窗函数
@@ -69,11 +70,16 @@ async function handleTriggerDebug() {
       Message.error('时间格式无效，请输入 Unix 时间戳')
       return
     }
-    // 注意：这里的 result 是后端返回的 data 部分
     const resultData = await analysisStore.triggerDebugAnalysis(timestamp)
     if (resultData) {
-      // 调用我们新创建的通用弹窗函数
-      showDebugDetails(resultData)
+      Modal.info({
+        title: '调试分析结果',
+        content: () => h(DebugResultViewer, { result: resultData, apiUrl }),
+        width: '900px',
+        modalClass: 'debug-result-modal',
+        titleAlign: 'start',
+        maskClosable: true,
+      })
     }
   }
   finally {
@@ -99,9 +105,9 @@ onUnmounted(() => {
 <template>
   <div class="p-4 sm:p-6">
     <div class="mb-6 space-y-4">
-      <TrendChart :results="results" @request-debug="showDebugDetails" />
+      <TrendChart :results="results" @timestamp-selected="handleTimestampSelected" />
 
-      <div class="p-3 border border-gray-200 rounded-lg bg-white flex gap-2 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
+      <div ref="debugToolRef" class="p-3 border border-gray-200 rounded-lg bg-white flex gap-2 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
         <span class="font-medium flex-none">调试工具:</span>
         <AInput
           v-model="debugTimestampInput"
@@ -117,7 +123,7 @@ onUnmounted(() => {
     </div>
     <!-- 卡片网格布局 -->
     <div class="gap-4 grid grid-cols-1 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
-      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" />
+      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @timestamp-selected="handleTimestampSelected" />
     </div>
 
     <!-- 加载指示器 -->

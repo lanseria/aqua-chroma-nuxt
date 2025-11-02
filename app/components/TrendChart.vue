@@ -16,9 +16,9 @@ const props = defineProps<{
   results: AnalysisResult[]
 }>()
 
-// --- 新增：定义要发出的自定义事件 ---
+// --- 定义要发出的自定义事件 ---
 const emits = defineEmits<{
-  (e: 'request-debug', item: AnalysisResult): void
+  (e: 'timestamp-selected', timestamp: number): void
 }>()
 
 const dayjs = useDayjs()
@@ -36,7 +36,7 @@ use([
   DataZoomComponent,
 ])
 
-// --- 新增：将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
+// --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
 const chartData = computed(() =>
   props.results
     .filter(r => r.status === 'completed' && r.sea_blueness !== null)
@@ -111,15 +111,12 @@ const chartOption = computed(() => {
   }
 })
 
-// --- 新增：图表点击事件处理函数 ---
 function handleChartClick(params: any) {
-  // params.dataIndex 是 ECharts 提供的点击项的索引
   if (params.dataIndex !== undefined) {
-    // 根据索引从我们排序好的 chartData 中找到对应的原始数据项
     const clickedItem = chartData.value[params.dataIndex]
     if (clickedItem) {
-      // 发出自定义事件，并附带完整的数据项
-      emits('request-debug', clickedItem)
+      // 发出只包含时间戳的事件
+      emits('timestamp-selected', clickedItem.timestamp)
     }
   }
 }

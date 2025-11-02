@@ -5,6 +5,10 @@ const props = defineProps<{
   item: AnalysisResult
 }>()
 
+const emits = defineEmits<{
+  (e: 'timestamp-selected', timestamp: number): void
+}>()
+
 const dayjs = useDayjs()
 
 // URL
@@ -38,10 +42,14 @@ function getCloudColor(percentage: number) {
 // --- 新增：将 0-1 的浮点数转换为 0-100 的百分比，并处理 null ---
 const seaBluenessPercentage = computed(() => (props.item.sea_blueness ?? 0) * 100)
 const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) * 100)
+
+function selectTimestamp() {
+  emits('timestamp-selected', props.item.timestamp)
+}
 </script>
 
 <template>
-  <div class="p-4 border border-gray-200 rounded-lg bg-white flex flex-col shadow-sm transition-all duration-300 space-y-3 dark:border-gray-700 dark:bg-gray-800 hover:shadow-lg hover:-translate-y-1">
+  <div class="p-4 border border-gray-200 rounded-lg bg-white flex flex-col shadow-sm transition-all duration-300 space-y-3 dark:border-gray-700 dark:bg-gray-800 hover:shadow-lg hover:-translate-y-1" @click="selectTimestamp">
     <!-- 头部信息 -->
     <div class="flex items-center justify-between">
       <span class="text-sm text-gray-500 font-mono dark:text-gray-400">
