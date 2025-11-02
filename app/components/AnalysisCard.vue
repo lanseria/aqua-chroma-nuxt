@@ -76,13 +76,13 @@ const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) 
         <p class="text-xs text-gray-500 mb-1 text-center">
           海洋掩码
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/03_ocean_only.png`" alt="Ocean Only" class="border rounded-md dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/03_ocean_only.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
       <div>
         <p class="text-xs text-gray-500 mb-1 text-center">
           云层掩码
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/04_cloud_mask.png`" alt="Cloud Mask" class="border rounded-md dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/04_cloud_mask.png`" alt="Cloud Mask" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
     </div>
   </div>

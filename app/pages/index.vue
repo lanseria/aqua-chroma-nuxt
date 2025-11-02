@@ -101,12 +101,11 @@ onUnmounted(() => {
     <div class="mb-6 space-y-4">
       <TrendChart :results="results" @request-debug="showDebugDetails" />
 
-      <div class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-2 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
-        <span class="font-medium">调试工具:</span>
+      <div class="p-3 border border-gray-200 rounded-lg bg-white flex gap-2 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
+        <span class="font-medium flex-none">调试工具:</span>
         <AInput
           v-model="debugTimestampInput"
           placeholder="输入时间戳1761978000"
-          class="w-60"
         />
         <AButton type="primary" :loading="isDebugging" @click="handleTriggerDebug">
           <template #icon>
