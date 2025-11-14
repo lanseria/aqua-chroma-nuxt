@@ -82,9 +82,9 @@ function selectTimestamp() {
     <div class="pt-2 gap-2 grid grid-cols-2">
       <div>
         <p class="text-xs text-gray-500 mb-1 text-center">
-          海洋掩码
+          原图
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/03_ocean_only.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/01_downloaded_cropped.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
       <div>
         <p class="text-xs text-gray-500 mb-1 text-center">
