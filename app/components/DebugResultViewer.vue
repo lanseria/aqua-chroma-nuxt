@@ -1,11 +1,15 @@
 <script lang="ts" setup>
-// 假设 AnalysisResult 是从后端返回的单个调试结果的数据结构
-// 我们直接从后端返回的 result.data 来定义类型
+// 更新的调试结果数据结构，与后端响应保持一致
 interface DebugData {
   timestamp: number
   status: 'completed' | 'night'
-  sea_blueness: number | null
-  cloud_coverage: number | null
+  seaBlueness: number | null // 字段名从 snake_case 变为 camelCase
+  cloudCoverage: number | null // 字段名从 snake_case 变为 camelCase
+  bluePercentage: number | null // 新增字段
+  yellowPercentage: number | null // 新增字段
+  bluePixels: number | null // 新增字段
+  yellowPixels: number | null // 新增字段
+  cloudPixels: number | null // 新增字段
   output_directory: string
 }
 
@@ -16,23 +20,26 @@ const props = defineProps<{
 
 const dayjs = useDayjs()
 
-// 定义所有需要展示的调试图片文件名
+// 更新调试图片文件名列表
 const imageFilenames = [
   '01_downloaded_cropped.png',
+  '01a_dehazed.png',
   '02_generated_mask.png',
   '03_ocean_only.png',
-  '04_cloud_mask.png',
-  '05_cloud_free.png',
-  '05_raw_blue_mask.png',
-  '06_final_blue_ocean_mask.png',
+  '04_kmeans_classification.png',
 ]
 
-// 格式化数据，使其更易读
+// 格式化数据，使其更易读，并包含所有新字段
 const formattedData = computed(() => [
   { label: '时间', value: dayjs.unix(props.result.timestamp).format('YYYY-MM-DD HH:mm:ss') },
   { label: '状态', value: props.result.status },
-  { label: '海蓝程度', value: props.result.sea_blueness !== null ? `${(props.result.sea_blueness * 100).toFixed(4)}%` : 'N/A' },
-  { label: '云层覆盖率', value: props.result.cloud_coverage !== null ? `${(props.result.cloud_coverage * 100).toFixed(4)}%` : 'N/A' },
+  { label: '海蓝程度', value: props.result.seaBlueness !== null ? `${(props.result.seaBlueness * 100).toFixed(4)}%` : 'N/A' },
+  { label: '云层覆盖率', value: props.result.cloudCoverage !== null ? `${(props.result.cloudCoverage * 100).toFixed(4)}%` : 'N/A' },
+  { label: '蓝色百分比', value: props.result.bluePercentage !== null ? `${(props.result.bluePercentage * 100).toFixed(4)}%` : 'N/A' },
+  { label: '黄色百分比', value: props.result.yellowPercentage !== null ? `${(props.result.yellowPercentage * 100).toFixed(4)}%` : 'N/A' },
+  { label: '蓝色像素', value: props.result.bluePixels?.toLocaleString() ?? 'N/A' },
+  { label: '黄色像素', value: props.result.yellowPixels?.toLocaleString() ?? 'N/A' },
+  { label: '云像素', value: props.result.cloudPixels?.toLocaleString() ?? 'N/A' },
   { label: '输出目录', value: props.result.output_directory },
 ])
 </script>

@@ -41,7 +41,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
   async function triggerDebugAnalysis(timestamp: number) {
     try {
-      const { data } = await request.post(`/api/debug/analyze/${timestamp}`)
+      const { data } = await request.get(`/api/debug/analyze/${timestamp}`)
       Message.success('调试分析任务已触发')
       return data
     }

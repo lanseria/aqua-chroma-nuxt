@@ -46,7 +46,6 @@
 - [UnoCSS](https://github.com/unocss/unocss) - the instant on-demand atomic CSS engine.
 - [Pinia](https://github.com/vuejs/pinia) - intuitive, type safe, light and flexible Store for Vue.
 - [VitePWA](https://github.com/vite-pwa/nuxt) - zero-config PWA Plugin for Nuxt 4.
-- [DevTools](https://github.com/nuxt/devtools) - unleash Nuxt Developer Experience.
 
 ## IDE
 

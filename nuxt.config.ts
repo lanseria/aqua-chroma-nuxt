@@ -15,9 +15,7 @@ export default defineNuxtConfig({
     'arco-design-nuxt-module',
   ],
 
-  devtools: {
-    enabled: true,
-  },
+  devtools: { enabled: false },
 
   app: {
     head: {
