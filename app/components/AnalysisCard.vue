@@ -84,13 +84,13 @@ function selectTimestamp() {
         <p class="text-xs text-gray-500 mb-1 text-center">
           原图
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/01_downloaded_cropped.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
       <div>
         <p class="text-xs text-gray-500 mb-1 text-center">
           分类结果
         </p>
-        <img :src="`${apiUrl}/${item.output_directory}/04_kmeans_classification.png`" alt="K-Means Classification" class="border rounded-md aspect-square object-cover dark:border-gray-600">
+        <img :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`" alt="K-Means Classification" class="border rounded-md aspect-square object-cover dark:border-gray-600">
       </div>
     </div>
   </div>

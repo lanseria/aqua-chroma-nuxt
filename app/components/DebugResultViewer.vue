@@ -22,11 +22,9 @@ const dayjs = useDayjs()
 
 // 更新调试图片文件名列表
 const imageFilenames = [
-  '01_downloaded_cropped.png',
-  '01a_dehazed.png',
-  '02_generated_mask.png',
+  '01_input_processed.png',
   '03_ocean_only.png',
-  '04_kmeans_classification.png',
+  '04_hsv_classification.png',
 ]
 
 // 格式化数据，使其更易读，并包含所有新字段
