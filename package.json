@@ -34,7 +34,7 @@
     "echarts": "catalog:dev",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
-    "nuxt": "catalog:build",
+    "nuxt": "^4.2.1",
     "nuxt-echarts": "catalog:dev",
     "pinia": "catalog:frontend",
     "typescript": "catalog:dev",

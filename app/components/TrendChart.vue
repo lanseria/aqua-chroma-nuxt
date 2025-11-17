@@ -1,16 +1,6 @@
 <script lang="ts" setup>
+import type { EChartsOption } from 'echarts'
 import type { AnalysisResult } from '~/stores/analysis'
-import { LineChart } from 'echarts/charts'
-import {
-  DataZoomComponent,
-  GridComponent,
-  TitleComponent,
-  ToolboxComponent,
-  TooltipComponent,
-} from 'echarts/components'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { THEME_KEY } from 'vue-echarts'
 
 const props = defineProps<{
   results: AnalysisResult[]
@@ -22,19 +12,18 @@ const emits = defineEmits<{
 }>()
 
 const dayjs = useDayjs()
+
+// 定义 Y 轴标记线及其美化后的描述文字
+const markLineLevels = [
+  { yAxis: 80, name: '湛蓝如镜', color: '#10b981' }, // 极佳
+  { yAxis: 60, name: '清澈蔚蓝', color: '#3b82f6' }, // 不错
+  { yAxis: 40, name: '碧波荡漾', color: '#f59e0b' }, // 一般
+  { yAxis: 20, name: '略显浑浊', color: '#ef4444' }, // 较差
+]
+
 const colorMode = useColorMode()
 
 provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
-
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  ToolboxComponent,
-  DataZoomComponent,
-])
 
 // --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
 const chartData = computed(() =>
@@ -43,7 +32,7 @@ const chartData = computed(() =>
     .sort((a, b) => a.timestamp - b.timestamp),
 )
 
-const chartOption = computed(() => {
+const chartOption = computed<EChartsOption>(() => {
   return {
     title: {
       text: '海蓝程度趋势分析 (点击数据点查看详情)',
@@ -60,10 +49,12 @@ const chartOption = computed(() => {
       },
     },
     grid: {
-      left: '3%',
-      right: '4%',
+      left: '5%',
+      right: '5%',
       bottom: '10%',
-      containLabel: true,
+      outerBounds: {
+        bottom: '10%',
+      },
     },
     xAxis: {
       type: 'category',
@@ -88,10 +79,8 @@ const chartOption = computed(() => {
         name: '海蓝程度',
         type: 'line',
         smooth: true,
-        // --- 修改点：使用提取的 chartData ---
         data: chartData.value.map(r => (r.sea_blueness ?? 0) * 100),
         itemStyle: { color: '#3b82f6' },
-        // --- 新增：添加光标样式，提示用户可以点击 ---
         cursor: 'pointer',
         areaStyle: {
           color: {
@@ -105,6 +94,25 @@ const chartOption = computed(() => {
               { offset: 1, color: 'rgba(59, 130, 246, 0.1)' },
             ],
           },
+        },
+        // --- 新增：添加标记线 ---
+        markLine: {
+          silent: true, // 标记线不响应鼠标事件
+          symbol: 'none', // 两端不显示任何符号
+          data: markLineLevels.map(item => ({
+            yAxis: item.yAxis,
+            label: {
+              position: 'end', // 标签显示在行的末端（右侧）
+              formatter: item.name, // 使用我们定义的美化名称
+              color: item.color, // 标签颜色与线条颜色一致
+              fontSize: 10,
+              distance: 10, // 标签与图表边缘的距离
+            },
+            lineStyle: {
+              type: 'dashed', // 设置为虚线
+              color: item.color, // 线条颜色
+            },
+          })),
         },
       },
     ],

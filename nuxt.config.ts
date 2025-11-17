@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     'dayjs-nuxt',
     'arco-design-nuxt-module',
   ],
-
+  ssr: false,
   devtools: { enabled: false },
 
   app: {
@@ -72,11 +72,13 @@ export default defineNuxtConfig({
     renderer: ['canvas'],
     charts: ['LineChart'],
     components: [
+      'DataZoomComponent',
+      'GridComponent',
+      'LegendComponent',
+      'MarkPointComponent',
+      'MarkLineComponent',
       'TitleComponent',
       'TooltipComponent',
-      'GridComponent',
-      'ToolboxComponent',
-      'DataZoomComponent',
     ],
   },
   eslint: {
