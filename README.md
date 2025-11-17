@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://main--aqua-chroma-nuxt.netlify.app/"><strong> ✨ 在线预览 </strong></a>
+  <a href="https://aqua-chroma-nuxt.netlify.app/"><strong> ✨ 在线预览 </strong></a>
 </p>
 
 <p align="center">
