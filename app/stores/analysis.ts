@@ -22,16 +22,32 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
   async function fetchResults() {
     try {
-      const { code, data, msg }: R<AnalysisResult[]> = await request.get('/api/results')
+      const supabase = useSupabase()
+      // 从 Supabase 获取数据
+      const { data, error } = await supabase
+        .from('analysis_results')
+        .select('timestamp, status, sea_blueness, cloud_coverage')
+        .order('timestamp', { ascending: false })
 
-      // --- 修改点：判断 code === 200 ---
-      if (code === 200) {
-        // --- 修改点：按数字时间戳降序排序 ---
-        results.value = data.sort((a, b) => b.timestamp - a.timestamp)
+      if (error) {
+        Message.error(`获取分析结果失败: ${error.message}`)
+        return // 出现错误时停止执行
       }
-      else {
-        Message.error(`获取分析结果失败: ${msg}`)
-      }
+
+      // 格式化数据以匹配现有的 AnalysisResult 接口
+      const formattedData: AnalysisResult[] = data.map(item => ({
+        timestamp: item.timestamp,
+        status: item.status as 'completed' | 'night',
+        sea_blueness: item.sea_blueness,
+        cloud_coverage: item.cloud_coverage,
+        // 注意: 'output_directory' 字段在数据库中不存在。
+        // 我们在客户端根据时间戳构造它，以确保图片 URL 能正常工作。
+        // 这个值是根据项目约定推断的 'results/<timestamp>' 格式。
+        output_directory: `data/output/${item.timestamp}`,
+      }))
+
+      // 按时间戳降序排序
+      results.value = formattedData.sort((a, b) => b.timestamp - a.timestamp)
     }
     catch (error) {
       console.error('获取分析结果时发生错误:', error)

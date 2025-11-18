@@ -40,6 +40,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiUrl: 'https://aqua-chroma.sharee.top', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+      supabaseUrl: '',
+      supabaseKey: '',
     },
   },
   experimental: {
@@ -49,23 +51,6 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2025-11-01',
-
-  nitro: {
-    esbuild: {
-      options: {
-        target: 'esnext',
-      },
-    },
-    prerender: {
-      crawlLinks: false,
-      routes: ['/'],
-    },
-    routeRules: {
-      '/api/**': {
-        proxy: `${env.NUXT_PUBLIC_API_URL || 'https://aqua-chroma.sharee.top'}/**`,
-      },
-    },
-  },
 
   echarts: {
     renderer: ['canvas'],
