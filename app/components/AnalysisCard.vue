@@ -15,19 +15,6 @@ const dayjs = useDayjs()
 const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
 
-// 根据状态返回不同的颜色 class
-const statusClasses = computed(() => {
-  switch (props.item.status) {
-    case 'completed':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-    // --- 新增 'night' 状态 ---
-    case 'night':
-      return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300'
-    default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-  }
-})
-
 // 根据百分比动态计算颜色
 function getAquaColor(percentage: number) {
   const hue = (percentage / 100) * 120
@@ -53,14 +40,8 @@ function selectTimestamp() {
     <!-- 头部信息 -->
     <div class="flex items-center justify-between">
       <span class="text-sm text-gray-500 font-mono dark:text-gray-400">
-        <!-- --- 修改点：使用 dayjs.unix() 处理 Unix 时间戳 --- -->
-        {{ dayjs.unix(item.timestamp).format('YYYY-MM-DD HH:mm:ss') }}
-      </span>
-      <span
-        class="text-xs font-medium px-2.5 py-0.5 rounded-full capitalize"
-        :class="statusClasses"
-      >
-        {{ item.status }}
+        <!-- 仅显示年月日 时分 -->
+        {{ dayjs.unix(item.timestamp).format('YYYY-MM-DD HH:mm') }}
       </span>
     </div>
 
@@ -78,20 +59,42 @@ function selectTimestamp() {
       />
     </div>
 
-    <!-- 调试图片 -->
-    <div class="pt-2 gap-2 grid grid-cols-2">
-      <div>
-        <p class="text-xs text-gray-500 mb-1 text-center">
-          原图
-        </p>
-        <img :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`" alt="Ocean Only" class="border rounded-md aspect-square object-cover dark:border-gray-600">
-      </div>
-      <div>
-        <p class="text-xs text-gray-500 mb-1 text-center">
-          分类结果
-        </p>
-        <img :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`" alt="K-Means Classification" class="border rounded-md aspect-square object-cover dark:border-gray-600">
-      </div>
+    <!-- 调试图片 (点击预览，阻止冒泡防止触发卡片选择) -->
+    <div class="pt-2" @click.stop>
+      <AImagePreviewGroup infinite>
+        <div class="gap-2 grid grid-cols-2">
+          <div>
+            <p class="text-xs text-gray-500 mb-1 text-center">
+              原图
+            </p>
+            <AImage
+              :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`"
+              alt="Ocean Only"
+              width="100%"
+              fit="cover"
+              class="border rounded-md aspect-square dark:border-gray-600 !block"
+              :preview-props="{
+                actionsLayout: ['rotateRight', 'zoomIn', 'zoomOut', 'fullScreen'],
+              }"
+            />
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 mb-1 text-center">
+              分类结果
+            </p>
+            <AImage
+              :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`"
+              alt="K-Means Classification"
+              width="100%"
+              fit="cover"
+              class="border rounded-md aspect-square dark:border-gray-600 !block"
+              :preview-props="{
+                actionsLayout: ['rotateRight', 'zoomIn', 'zoomOut', 'fullScreen'],
+              }"
+            />
+          </div>
+        </div>
+      </AImagePreviewGroup>
     </div>
   </div>
 </template>
