@@ -6,19 +6,18 @@ catalogs:
     '@nuxt/kit': ^4.2.1
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.5.6
-    '@unocss/nuxt': ^66.5.6
+    '@unocss/eslint-config': ^66.5.9
+    '@unocss/nuxt': ^66.5.9
     '@vite-pwa/nuxt': ^1.0.7
     '@vueuse/nuxt': ^14.0.0
     nuxt: ^4.2.1
-    unocss: ^66.5.6
-    unplugin: ^2.3.10
-    vite: ^7.2.2
-
+    unocss: ^66.5.9
+    unplugin: ^2.3.11
+    vite: ^7.2.4
   dev:
     '@antfu/eslint-config': ^6.2.0
     '@arco-design/web-vue': ^2.57.0
-    '@supabase/supabase-js': ^2.82.0
+    '@supabase/supabase-js': ^2.84.0
     '@types/node': ^24.10.1
     arco-design-nuxt-module: ^0.2.1
     axios: ^1.13.2
@@ -29,14 +28,15 @@ catalogs:
     nuxt-echarts: ^1.0.1
     typescript: ^5.9.3
     vue-echarts: ^8.0.1
-    vue-tsc: ^3.1.4
+    vue-tsc: ^3.1.5
   frontend:
     '@vueuse/core': ^14.0.0
     pinia: ^3.0.4
-    vue: ^3.5.24
+    vue: ^3.5.25
   icons:
     '@iconify-json/carbon': ^1.2.14
     '@iconify-json/twemoji': ^1.2.4
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
