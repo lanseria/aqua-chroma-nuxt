@@ -142,6 +142,7 @@ const chartOption = computed<EChartsOption>(() => {
         name: '海蓝程度',
         type: 'line',
         smooth: true,
+        sampling: 'lttb', // --- 新增：开启降采样优化 ---
         data: chartData.value.map(r => (r.sea_blueness ?? 0) * 100),
         itemStyle: { color: '#3b82f6' },
         cursor: 'pointer',
@@ -188,12 +189,10 @@ const chartOption = computed<EChartsOption>(() => {
         name: '云层覆盖率',
         type: 'line',
         smooth: true,
+        sampling: 'lttb', // --- 新增：开启降采样优化 ---
         showSymbol: false, // 不显示数据点，减少视觉干扰
         data: chartData.value.map(r => (r.cloud_coverage ?? 0) * 100),
         itemStyle: {
-          color: '#9ca3af', // 统一使用灰色
-        },
-        lineStyle: {
           width: 1.5,
           type: 'dashed', // 使用虚线表示辅助数据
           opacity: 0.6, // 降低不透明度

@@ -11,16 +11,38 @@ const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
 
 const analysisStore = useAnalysisStore()
-const { results } = storeToRefs(analysisStore)
+// --- 修改点：解构出 loadingProgress ---
+const { results, loadingProgress } = storeToRefs(analysisStore)
 
+// --- 数据筛选与加载 ---
 const INITIAL_LOAD_COUNT = 12
 const LOAD_MORE_COUNT = 8
+
+// 定义时间范围选项
+const timeRanges = [
+  { label: '24小时', value: 1 },
+  { label: '3天', value: 3 },
+  { label: '7天', value: 7 },
+  { label: '30天', value: 30 },
+  { label: '1年', value: 365 }, // 新增 1 年选项
+]
+const selectedRange = ref(7) // 默认选中 7 天
+const isFetching = ref(false)
 
 const displayedCount = ref(INITIAL_LOAD_COUNT)
 const isLoadingMore = ref(false)
 const allDataLoaded = computed(() => displayedCount.value >= results.value.length)
 
 const displayedResults = computed(() => results.value.filter(m => m.status === 'completed').slice(0, displayedCount.value))
+
+// 切换时间范围的处理函数
+async function handleRangeChange(val: string | number | boolean) {
+  const days = Number(val)
+  displayedCount.value = INITIAL_LOAD_COUNT // 重置列表显示数量
+  isFetching.value = true
+  await analysisStore.fetchResults(days)
+  isFetching.value = false
+}
 
 // 加载更多数据的函数
 function loadMore() {
@@ -201,9 +223,8 @@ async function handleTriggerDebug() {
 
 // 页面加载时获取初始数据
 onMounted(async () => {
-  // 如果 store 中没有数据，则从 API 获取
-  if (results.value.length === 0)
-    await analysisStore.fetchResults()
+  // 页面加载时，使用当前选中的 range 获取数据
+  await analysisStore.fetchResults(selectedRange.value)
 
   window.addEventListener('scroll', handleScroll)
 })
@@ -217,7 +238,33 @@ onUnmounted(() => {
 <template>
   <div class="p-4 sm:p-6">
     <div class="mb-6 space-y-4">
-      <TrendChart :results="results" @timestamp-selected="handleTimestampSelected" />
+      <!-- 顶部控制栏：时间筛选 -->
+      <div class="flex flex-wrap gap-4 items-center justify-between">
+        <h2 class="text-xl text-gray-800 font-bold dark:text-gray-100">
+          趋势概览
+        </h2>
+        <ARadioGroup
+          v-model="selectedRange"
+          type="button"
+          size="medium"
+          @change="handleRangeChange"
+        >
+          <ARadio v-for="range in timeRanges" :key="range.value" :value="range.value">
+            {{ range.label }}
+          </ARadio>
+        </ARadioGroup>
+      </div>
+
+      <div class="relative">
+        <!-- 加载遮罩 -->
+        <div v-if="isFetching" class="rounded-lg bg-white/60 flex flex-col gap-2 items-center inset-0 justify-center absolute z-10 backdrop-blur-sm dark:bg-gray-800/60">
+          <div class="i-carbon-circle-dash text-teal-600 h-8 w-8 animate-spin" />
+          <div class="text-xs text-gray-500 font-mono">
+            已加载 {{ loadingProgress }} 条数据...
+          </div>
+        </div>
+        <TrendChart :results="results" @timestamp-selected="handleTimestampSelected" />
+      </div>
 
       <div ref="debugToolRef" class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-4 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
         <!-- 原有的单点调试 -->
