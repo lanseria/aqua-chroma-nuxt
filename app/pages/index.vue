@@ -9,6 +9,7 @@ const dayjs = useDayjs()
 // URL
 const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
+const isNetlify = runtimeConfig.public.platform === 'netlify'
 
 const analysisStore = useAnalysisStore()
 // --- 修改点：解构出 loadingProgress ---
@@ -266,7 +267,7 @@ onUnmounted(() => {
         <TrendChart :results="results" @timestamp-selected="handleTimestampSelected" />
       </div>
 
-      <div ref="debugToolRef" class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-4 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
+      <div v-if="!isNetlify" ref="debugToolRef" class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-4 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
         <!-- 原有的单点调试 -->
         <div class="flex gap-2 items-center">
           <span class="font-medium flex-none">单点调试:</span>
@@ -304,26 +305,28 @@ onUnmounted(() => {
       </div>
     </div>
     <!-- 卡片网格布局 -->
-    <div class="gap-4 grid grid-cols-1 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div v-if="!isNetlify" class="gap-4 grid grid-cols-1 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
       <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @timestamp-selected="handleTimestampSelected" />
     </div>
 
     <!-- 加载指示器 -->
-    <div v-if="isLoadingMore || !allDataLoaded" class="text-gray-500 py-8 text-center">
-      <div v-if="isLoadingMore" class="flex items-center justify-center space-x-2">
-        <div class="i-carbon-circle-dash h-6 w-6 animate-spin" />
-        <span>加载中...</span>
+    <template v-if="!isNetlify">
+      <div v-if="isLoadingMore || !allDataLoaded" class="text-gray-500 py-8 text-center">
+        <div v-if="isLoadingMore" class="flex items-center justify-center space-x-2">
+          <div class="i-carbon-circle-dash h-6 w-6 animate-spin" />
+          <span>加载中...</span>
+        </div>
+        <div v-else-if="!allDataLoaded">
+          滚动以加载更多
+        </div>
       </div>
-      <div v-else-if="!allDataLoaded">
-        滚动以加载更多
+      <div v-if="allDataLoaded && results.length > 0" class="text-gray-500 py-8 text-center">
+        - 已加载全部内容 -
       </div>
-    </div>
-    <div v-if="allDataLoaded && results.length > 0" class="text-gray-500 py-8 text-center">
-      - 已加载全部内容 -
-    </div>
-    <div v-if="results.length === 0 && !isLoadingMore" class="text-gray-400 py-20 text-center">
-      暂无分析数据
-    </div>
+      <div v-if="results.length === 0 && !isLoadingMore" class="text-gray-400 py-20 text-center">
+        暂无分析数据
+      </div>
+    </template>
   </div>
 </template>
 
