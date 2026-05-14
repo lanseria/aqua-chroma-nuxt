@@ -1,5 +1,15 @@
+shamefullyHoist: true
+strictPeerDependencies: false
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
 packages: []
 
+catalog:
+  '@types/file-saver': ^2.0.7
+  file-saver: ^2.0.5
+  jszip: ^3.10.1
 catalogs:
   build:
     '@nuxt/eslint': ^1.11.0
@@ -7,37 +17,39 @@ catalogs:
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
     '@unocss/eslint-config': ^66.5.9
-    '@unocss/nuxt': ^66.5.9
+    '@unocss/nuxt': ^66.6.8
     '@vite-pwa/nuxt': ^1.1.0
-    '@vueuse/nuxt': ^14.1.0
+    '@vueuse/nuxt': ^14.3.0
     nuxt: ^4.2.1
-    unocss: ^66.5.9
+    unocss: ^66.6.8
     unplugin: ^2.3.11
     vite: ^7.2.6
   dev:
     '@antfu/eslint-config': ^6.2.0
-    '@arco-design/web-vue': ^2.57.0
-    '@supabase/supabase-js': ^2.86.0
+    '@supabase/supabase-js': ^2.105.4
     '@types/node': ^24.10.1
-    arco-design-nuxt-module: ^0.2.1
-    axios: ^1.13.2
-    dayjs-nuxt: ^2.1.11
+    axios: ^1.16.1
+    date-fns: ^4.1.0
     echarts: ^6.0.0
     eslint: ^9.39.1
     eslint-plugin-format: ^1.0.2
     nuxt-echarts: ^1.0.1
     typescript: ^5.9.3
     vue-echarts: ^8.0.1
-    vue-tsc: ^3.1.5
+    vue-tsc: ^3.2.9
   frontend:
-    '@vueuse/core': ^14.1.0
+    '@vueuse/core': ^14.3.0
     pinia: ^3.0.4
-    vue: ^3.5.25
+    vue: ^3.5.34
   icons:
-    '@iconify-json/carbon': ^1.2.14
-    '@iconify-json/twemoji': ^1.2.4
+    '@iconify-json/carbon': ^1.2.21
+    '@iconify-json/twemoji': ^1.2.5
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  unrs-resolver: true

@@ -42,9 +42,9 @@ pnpm typecheck     # TypeScript 类型检查
 
 ```typescript
 interface AnalysisResult {
-  timestamp: number           // Unix timestamp (seconds)
+  timestamp: number // Unix timestamp (seconds)
   status: 'completed' | 'night'
-  sea_blueness: number | null  // 0-1
+  sea_blueness: number | null // 0-1
   cloud_coverage: number | null // 0-1
   output_directory: string
 }

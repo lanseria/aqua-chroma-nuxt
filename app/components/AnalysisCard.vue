@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { AnalysisResult } from '~/stores/analysis'
+import { format, fromUnixTime } from 'date-fns'
 
 const props = defineProps<{
   item: AnalysisResult
@@ -8,8 +9,6 @@ const props = defineProps<{
 const emits = defineEmits<{
   (e: 'timestamp-selected', timestamp: number): void
 }>()
-
-const dayjs = useDayjs()
 
 // URL
 const runtimeConfig = useRuntimeConfig()
@@ -26,12 +25,24 @@ function getCloudColor(percentage: number) {
   return `hsl(0, 0%, ${lightness}%)`
 }
 
-// --- 新增：将 0-1 的浮点数转换为 0-100 的百分比，并处理 null ---
 const seaBluenessPercentage = computed(() => (props.item.sea_blueness ?? 0) * 100)
 const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) * 100)
 
 function selectTimestamp() {
   emits('timestamp-selected', props.item.timestamp)
+}
+
+// 图片预览
+const isPreviewOpen = ref(false)
+const previewIndex = ref(0)
+const previewImages = computed(() => [
+  { src: `${apiUrl}/${props.item.output_directory}/01_input_processed.png`, alt: '原图' },
+  { src: `${apiUrl}/${props.item.output_directory}/04_hsv_classification.png`, alt: '分类结果' },
+])
+
+function openPreview(index: number) {
+  previewIndex.value = index
+  isPreviewOpen.value = true
 }
 </script>
 
@@ -40,8 +51,7 @@ function selectTimestamp() {
     <!-- 头部信息 -->
     <div class="flex items-center justify-between">
       <span class="text-sm text-gray-500 font-mono dark:text-gray-400">
-        <!-- 仅显示年月日 时分 -->
-        {{ dayjs.unix(item.timestamp).format('YYYY-MM-DD HH:mm') }}
+        {{ format(fromUnixTime(item.timestamp), 'yyyy-MM-dd HH:mm') }}
       </span>
     </div>
 
@@ -59,42 +69,38 @@ function selectTimestamp() {
       />
     </div>
 
-    <!-- 调试图片 (点击预览，阻止冒泡防止触发卡片选择) -->
+    <!-- 调试图片 -->
     <div class="pt-2" @click.stop>
-      <AImagePreviewGroup infinite>
-        <div class="gap-2 grid grid-cols-2">
-          <div>
-            <p class="text-xs text-gray-500 mb-1 text-center">
-              原图
-            </p>
-            <AImage
-              :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`"
-              alt="Ocean Only"
-              width="100%"
-              fit="cover"
-              class="border rounded-md aspect-square dark:border-gray-600 !block"
-              :preview-props="{
-                actionsLayout: ['rotateRight', 'zoomIn', 'zoomOut', 'fullScreen'],
-              }"
-            />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 mb-1 text-center">
-              分类结果
-            </p>
-            <AImage
-              :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`"
-              alt="K-Means Classification"
-              width="100%"
-              fit="cover"
-              class="border rounded-md aspect-square dark:border-gray-600 !block"
-              :preview-props="{
-                actionsLayout: ['rotateRight', 'zoomIn', 'zoomOut', 'fullScreen'],
-              }"
-            />
-          </div>
+      <div class="gap-2 grid grid-cols-2">
+        <div>
+          <p class="text-xs text-gray-500 mb-1 text-center">
+            原图
+          </p>
+          <img
+            :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`"
+            alt="Ocean Only"
+            class="border border-gray-200 rounded-md w-full aspect-square cursor-zoom-in object-cover dark:border-gray-600"
+            @click="openPreview(0)"
+          >
         </div>
-      </AImagePreviewGroup>
+        <div>
+          <p class="text-xs text-gray-500 mb-1 text-center">
+            分类结果
+          </p>
+          <img
+            :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`"
+            alt="K-Means Classification"
+            class="border border-gray-200 rounded-md w-full aspect-square cursor-zoom-in object-cover dark:border-gray-600"
+            @click="openPreview(1)"
+          >
+        </div>
+      </div>
+
+      <ImagePreview
+        v-model:open="isPreviewOpen"
+        :images="previewImages"
+        :initial-index="previewIndex"
+      />
     </div>
   </div>
 </template>

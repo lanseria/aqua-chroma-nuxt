@@ -1,4 +1,3 @@
-import { env } from 'node:process'
 import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
 
@@ -11,10 +10,10 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxt/eslint',
     'nuxt-echarts',
-    'dayjs-nuxt',
-    'arco-design-nuxt-module',
   ],
+
   ssr: false,
+
   devtools: { enabled: false },
 
   app: {
@@ -39,12 +38,17 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiUrl: 'https://aqua-chroma.sharee.top', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+      apiUrl: '', // can be overridden by NUXT_PUBLIC_API_URL environment variable
       supabaseUrl: '',
       supabaseKey: '',
       platform: '', // set to 'netlify' via NUXT_PUBLIC_PLATFORM to hide debug tools and card list
     },
   },
+
+  devServer: {
+    port: 19997,
+  },
+
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
@@ -66,6 +70,7 @@ export default defineNuxtConfig({
       'TooltipComponent',
     ],
   },
+
   eslint: {
     config: {
       standalone: false,

@@ -1,17 +1,15 @@
 <script lang="ts" setup>
 import type { EChartsOption } from 'echarts'
 import type { AnalysisResult } from '~/stores/analysis'
+import { format, fromUnixTime } from 'date-fns'
 
 const props = defineProps<{
   results: AnalysisResult[]
 }>()
 
-// --- 定义要发出的自定义事件 ---
 const emits = defineEmits<{
   (e: 'timestamp-selected', timestamp: number): void
 }>()
-
-const dayjs = useDayjs()
 
 // 定义 Y 轴标记线及其美化后的描述文字
 const markLineLevels = [
@@ -39,14 +37,14 @@ const dateMarkLines = computed(() => {
   let lastDate = ''
 
   chartData.value.forEach((item, index) => {
-    const currentDate = dayjs.unix(item.timestamp).format('YYYY-MM-DD')
+    const currentDate = format(fromUnixTime(item.timestamp), 'yyyy-MM-dd')
 
     // 只要不是第一个点，且日期变化了，就加线
     if (index > 0 && currentDate !== lastDate) {
       lines.push({
         xAxis: index, // 在 Category 轴上，可以用索引定位
         label: {
-          formatter: dayjs.unix(item.timestamp).format('MM-DD'),
+          formatter: format(fromUnixTime(item.timestamp), 'MM-dd'),
           position: 'end', // 显示在顶部
           color: isDark.value ? '#9ca3af' : '#9ca3af', // 统一使用灰色
           fontSize: 11,
@@ -114,7 +112,7 @@ const chartOption = computed<EChartsOption>(() => {
       type: 'category',
       boundaryGap: false,
       // --- 修改点：使用提取的 chartData ---
-      data: chartData.value.map(r => dayjs.unix(r.timestamp).format('MM-DD HH:mm')),
+      data: chartData.value.map(r => format(fromUnixTime(r.timestamp), 'MM-dd HH:mm')),
       axisLabel: {
         color: isDark.value ? '#9ca3af' : '#6b7280',
       },

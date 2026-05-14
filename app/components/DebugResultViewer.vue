@@ -1,15 +1,16 @@
 <script lang="ts" setup>
-// 更新的调试结果数据结构，与后端响应保持一致
+import { format, fromUnixTime } from 'date-fns'
+
 interface DebugData {
   timestamp: number
   status: 'completed' | 'night'
-  seaBlueness: number | null // 字段名从 snake_case 变为 camelCase
-  cloudCoverage: number | null // 字段名从 snake_case 变为 camelCase
-  bluePercentage: number | null // 新增字段
-  yellowPercentage: number | null // 新增字段
-  bluePixels: number | null // 新增字段
-  yellowPixels: number | null // 新增字段
-  cloudPixels: number | null // 新增字段
+  seaBlueness: number | null
+  cloudCoverage: number | null
+  bluePercentage: number | null
+  yellowPercentage: number | null
+  bluePixels: number | null
+  yellowPixels: number | null
+  cloudPixels: number | null
   output_directory: string
 }
 
@@ -18,18 +19,14 @@ const props = defineProps<{
   apiUrl: string
 }>()
 
-const dayjs = useDayjs()
-
-// 更新调试图片文件名列表
 const imageFilenames = [
   '01_input_processed.png',
   '03_ocean_only.png',
   '04_hsv_classification.png',
 ]
 
-// 格式化数据，使其更易读，并包含所有新字段
 const formattedData = computed(() => [
-  { label: '时间', value: dayjs.unix(props.result.timestamp).format('YYYY-MM-DD HH:mm:ss') },
+  { label: '时间', value: format(fromUnixTime(props.result.timestamp), 'yyyy-MM-dd HH:mm:ss') },
   { label: '状态', value: props.result.status },
   { label: '海蓝程度', value: props.result.seaBlueness !== null ? `${(props.result.seaBlueness * 100).toFixed(4)}%` : 'N/A' },
   { label: '云层覆盖率', value: props.result.cloudCoverage !== null ? `${(props.result.cloudCoverage * 100).toFixed(4)}%` : 'N/A' },

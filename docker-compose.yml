@@ -1,0 +1,8 @@
+services:
+  aqua-chroma:
+    build: .
+    ports:
+      - '19997:3000'
+    env_file:
+      - .env
+    restart: unless-stopped

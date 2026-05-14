@@ -1,4 +1,4 @@
-import { Message } from '@arco-design/web-vue'
+import { subDays } from 'date-fns'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { request } from '~/composables/api/axios/request'
@@ -27,11 +27,9 @@ export const useAnalysisStore = defineStore('analysis', () => {
     results.value = [] // 清空旧数据
 
     const BATCH_SIZE = 1000
-    const dayjs = useDayjs()
-    // 计算截止时间 (startTime)
-    const cutoffTimestamp = days > 0 ? dayjs().subtract(days, 'day').unix() : 0
+    const cutoffTimestamp = days > 0 ? Math.floor(subDays(new Date(), days).getTime() / 1000) : 0
 
-    let lastTimestamp = dayjs().unix() + 3600 // 初始设为一个未来的时间，确保能拉到最新的
+    let lastTimestamp = Math.floor(Date.now() / 1000) + 3600
     let hasMore = true
     let allData: any[] = []
 
@@ -84,7 +82,8 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
     catch (error: any) {
       console.error('获取分析结果时发生错误:', error)
-      Message.error(`获取数据失败: ${error.message}`)
+      const toast = useToast()
+      toast.error(`获取数据失败: ${error.message}`)
     }
     finally {
       loadingProgress.value = 0
@@ -94,12 +93,14 @@ export const useAnalysisStore = defineStore('analysis', () => {
   async function triggerDebugAnalysis(timestamp: number) {
     try {
       const { data } = await request.get(`/api/debug/analyze/${timestamp}`)
-      Message.success('调试分析任务已触发')
+      const toast = useToast()
+      toast.success('调试分析任务已触发')
       return data
     }
     catch (error: any) {
       console.error('触发调试分析时发生错误:', error)
-      Message.error(`触发失败: ${error.message}`)
+      const toast = useToast()
+      toast.error(`触发失败: ${error.message}`)
       return null
     }
   }
