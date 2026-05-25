@@ -1,7 +1,6 @@
 import { subDays } from 'date-fns'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { request } from '~/composables/api/axios/request'
 
 /**
  * 分析结果的数据结构 (已更新)
@@ -90,25 +89,9 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
-  async function triggerDebugAnalysis(timestamp: number) {
-    try {
-      const { data } = await request.get(`/api/debug/analyze/${timestamp}`)
-      const toast = useToast()
-      toast.success('调试分析任务已触发')
-      return data
-    }
-    catch (error: any) {
-      console.error('触发调试分析时发生错误:', error)
-      const toast = useToast()
-      toast.error(`触发失败: ${error.message}`)
-      return null
-    }
-  }
-
   return {
     results,
     loadingProgress,
     fetchResults,
-    triggerDebugAnalysis,
   }
 })

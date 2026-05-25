@@ -64,7 +64,6 @@ function handleScroll() {
 
 // 调试工具的状态
 const debugTimestampInput = ref('')
-const isDebugging = ref(false)
 const debugToolRef = ref<HTMLElement | null>(null)
 
 // 弹窗状态
@@ -176,27 +175,25 @@ function handleTimestampSelected(timestamp: number) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-async function handleTriggerDebug() {
+function handleTriggerDebug() {
   if (!debugTimestampInput.value) {
     toast.warning('请输入有效的时间戳')
     return
   }
-  isDebugging.value = true
-  try {
-    const timestamp = +debugTimestampInput.value
-    if (Number.isNaN(timestamp)) {
-      toast.error('时间格式无效，请输入 Unix 时间戳')
-      return
-    }
-    const resultData = await analysisStore.triggerDebugAnalysis(timestamp)
-    if (resultData) {
-      debugResultData.value = resultData
-      isDebugModalOpen.value = true
-    }
+  const timestamp = +debugTimestampInput.value
+  if (Number.isNaN(timestamp)) {
+    toast.error('时间格式无效，请输入 Unix 时间戳')
+    return
   }
-  finally {
-    isDebugging.value = false
+
+  const matched = results.value.find(r => r.timestamp === timestamp)
+  if (!matched) {
+    toast.error('未找到该时间戳的历史数据，请确认时间戳是否正确')
+    return
   }
+
+  debugResultData.value = matched
+  isDebugModalOpen.value = true
 }
 
 onMounted(async () => {
@@ -241,13 +238,11 @@ onUnmounted(() => {
             class="text-sm px-3 py-1.5 border border-gray-300 rounded bg-white w-40 dark:text-gray-200 focus:outline-none dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-teal-500"
           >
           <button
-            class="text-sm text-white px-4 py-1.5 rounded bg-teal-600 flex gap-1.5 transition-colors items-center hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="isDebugging"
+            class="text-sm text-white px-4 py-1.5 rounded bg-teal-600 flex gap-1.5 transition-colors items-center hover:bg-teal-700"
             @click="handleTriggerDebug"
           >
-            <div v-if="isDebugging" class="i-carbon-circle-dash h-4 w-4 animate-spin" />
-            <div v-else class="i-carbon-debug h-4 w-4" />
-            分析
+            <div class="i-carbon-debug h-4 w-4" />
+            查看
           </button>
         </div>
 

@@ -1,21 +1,9 @@
 <script lang="ts" setup>
+import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime } from 'date-fns'
 
-interface DebugData {
-  timestamp: number
-  status: 'completed' | 'night'
-  seaBlueness: number | null
-  cloudCoverage: number | null
-  bluePercentage: number | null
-  yellowPercentage: number | null
-  bluePixels: number | null
-  yellowPixels: number | null
-  cloudPixels: number | null
-  output_directory: string
-}
-
 const props = defineProps<{
-  result: DebugData
+  result: AnalysisResult
   apiUrl: string
 }>()
 
@@ -28,14 +16,8 @@ const imageFilenames = [
 const formattedData = computed(() => [
   { label: '时间', value: format(fromUnixTime(props.result.timestamp), 'yyyy-MM-dd HH:mm:ss') },
   { label: '状态', value: props.result.status },
-  { label: '海蓝程度', value: props.result.seaBlueness !== null ? `${(props.result.seaBlueness * 100).toFixed(4)}%` : 'N/A' },
-  { label: '云层覆盖率', value: props.result.cloudCoverage !== null ? `${(props.result.cloudCoverage * 100).toFixed(4)}%` : 'N/A' },
-  { label: '蓝色百分比', value: props.result.bluePercentage !== null ? `${(props.result.bluePercentage * 100).toFixed(4)}%` : 'N/A' },
-  { label: '黄色百分比', value: props.result.yellowPercentage !== null ? `${(props.result.yellowPercentage * 100).toFixed(4)}%` : 'N/A' },
-  { label: '蓝色像素', value: props.result.bluePixels?.toLocaleString() ?? 'N/A' },
-  { label: '黄色像素', value: props.result.yellowPixels?.toLocaleString() ?? 'N/A' },
-  { label: '云像素', value: props.result.cloudPixels?.toLocaleString() ?? 'N/A' },
-  { label: '输出目录', value: props.result.output_directory },
+  { label: '海蓝程度', value: props.result.sea_blueness !== null ? `${(props.result.sea_blueness * 100).toFixed(4)}%` : 'N/A' },
+  { label: '云层覆盖率', value: props.result.cloud_coverage !== null ? `${(props.result.cloud_coverage * 100).toFixed(4)}%` : 'N/A' },
 ])
 </script>
 
