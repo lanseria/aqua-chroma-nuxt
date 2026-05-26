@@ -13,7 +13,7 @@ const emits = defineEmits<{
 // URL
 const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
-
+console.log(apiUrl)
 // 根据百分比动态计算颜色
 function getAquaColor(percentage: number) {
   const hue = (percentage / 100) * 120

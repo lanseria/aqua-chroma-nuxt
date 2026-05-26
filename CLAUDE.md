@@ -36,7 +36,7 @@ pnpm typecheck     # TypeScript 类型检查
 
 1. **Supabase** is the primary data source — the Pinia store (`analysisStore`) queries `analysis_results` table directly using cursor-based pagination (batch size 1000, ordered by `timestamp DESC`).
 2. **Axios** is used only for the debug API (`/api/debug/analyze/:timestamp`) — the base URL switches between `/api` (dev proxy) and the production URL based on `import.meta.env.DEV`.
-3. **Images** are served from the backend at `${apiUrl}/data/output/${timestamp}/` with files like `01_input_processed.png` and `04_hsv_classification.png`.
+3. **Images** are served from the backend at `${apiUrl}/output/${timestamp}/` with files like `01_input_processed.png` and `04_hsv_classification.png`.
 
 ### Key Data Model
 

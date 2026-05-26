@@ -73,7 +73,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
         status: item.status as 'completed' | 'night',
         sea_blueness: item.sea_blueness,
         cloud_coverage: item.cloud_coverage,
-        output_directory: `data/output/${item.timestamp}`,
+        output_directory: `output/${item.timestamp}`,
       }))
 
       // 赋值给状态
