@@ -69,7 +69,7 @@ pnpm install
 # .env
 
 # 后端服务的 URL
-NUXT_PUBLIC_API_URL=https://aqua-chroma.sharee.top
+NUXT_PUBLIC_API_URL=
 ```
 
 在开发环境中，Nuxt 会自动将 `/api` 的请求代理到此地址。

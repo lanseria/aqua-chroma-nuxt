@@ -38,10 +38,10 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiUrl: '', // can be overridden by NUXT_PUBLIC_API_URL environment variable
+      apiUrl: '',
       supabaseUrl: '',
       supabaseKey: '',
-      platform: '', // set to 'netlify' via NUXT_PUBLIC_PLATFORM to hide debug tools and card list
+      platform: '',
     },
   },
 

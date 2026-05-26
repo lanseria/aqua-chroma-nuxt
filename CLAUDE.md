@@ -71,7 +71,7 @@ Created in `app/composables/useSupabase.ts` — reads `supabaseUrl` and `supabas
 ## Environment Variables
 
 ```env
-NUXT_PUBLIC_API_URL=https://aqua-chroma.sharee.top
+NUXT_PUBLIC_API_URL=
 NUXT_PUBLIC_SUPABASE_URL=<url>
 NUXT_PUBLIC_SUPABASE_KEY=<key>
 ```
