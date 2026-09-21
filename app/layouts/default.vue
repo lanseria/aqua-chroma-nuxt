@@ -17,7 +17,15 @@ import { appName } from '~/constants'
           </div>
 
           <!-- 右侧：功能按钮 -->
-          <div class="flex h-full items-center">
+          <div class="flex gap-1 h-full items-center">
+            <!-- 动画回放入口 -->
+            <NuxtLink
+              to="/animation"
+              class="text-sm text-gray-600 px-3 py-1.5 rounded-lg flex gap-1.5 transition-colors items-center dark:text-gray-300 hover:text-teal-600 hover:bg-gray-100 dark:hover:text-teal-400 dark:hover:bg-gray-800"
+            >
+              <div class="i-carbon-play-filled h-4 w-4" />
+              <span class="hidden sm:inline">动画回放</span>
+            </NuxtLink>
             <!-- 主题切换组件 -->
             <ThemeToggle />
           </div>

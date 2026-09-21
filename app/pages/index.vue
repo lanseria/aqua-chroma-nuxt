@@ -5,6 +5,7 @@ import { saveAs } from 'file-saver'
 import JSZip from 'jszip'
 import { storeToRefs } from 'pinia'
 import DebugResultViewer from '~/components/DebugResultViewer.vue'
+import { timeRangeOptions } from '~/constants'
 import { useAnalysisStore } from '~/stores/analysis'
 
 const toast = useToast()
@@ -20,14 +21,6 @@ const { results, loadingProgress } = storeToRefs(analysisStore)
 const INITIAL_LOAD_COUNT = 12
 const LOAD_MORE_COUNT = 8
 
-// 定义时间范围选项
-const timeRanges = [
-  { label: '24小时', value: 1 },
-  { label: '3天', value: 3 },
-  { label: '7天', value: 7 },
-  { label: '30天', value: 30 },
-  { label: '1年', value: 365 },
-]
 const selectedRange = ref(7)
 const isFetching = ref(false)
 
@@ -224,7 +217,7 @@ onUnmounted(() => {
         <h2 class="text-xl text-gray-800 font-bold dark:text-gray-100">
           趋势概览
         </h2>
-        <ButtonGroup v-model="selectedRange" :options="timeRanges" @change="handleRangeChange" />
+        <ButtonGroup v-model="selectedRange" :options="timeRangeOptions" @change="handleRangeChange" />
       </div>
 
       <div class="relative">
