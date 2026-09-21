@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 Aqua Chroma（海蓝之心监控）— 基于 Nuxt 4 的实时监控仪表板，可视化展示图像分析后的"海蓝程度"和"云层覆盖率"数据。SSR 已关闭（SPA 模式），部署在 Netlify。
