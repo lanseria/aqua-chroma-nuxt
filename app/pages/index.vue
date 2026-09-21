@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime, parseISO, startOfDay } from 'date-fns'
 import { saveAs } from 'file-saver'
 import JSZip from 'jszip'
@@ -66,9 +67,19 @@ function handleScroll() {
 const debugTimestampInput = ref('')
 const debugToolRef = ref<HTMLElement | null>(null)
 
-// 弹窗状态
-const isDebugModalOpen = ref(false)
-const debugResultData = ref<any>(null)
+// 详情弹窗状态（卡片点击与单点调试共用）
+const isDetailModalOpen = ref(false)
+const detailResult = ref<AnalysisResult | null>(null)
+
+const detailModalTitle = computed(() =>
+  detailResult.value
+    ? `分析详情 · ${format(fromUnixTime(detailResult.value.timestamp), 'yyyy-MM-dd HH:mm:ss')}`
+    : '分析详情')
+
+function handleOpenDetail(item: AnalysisResult) {
+  detailResult.value = item
+  isDetailModalOpen.value = true
+}
 
 // --- 批量下载相关状态与逻辑 ---
 const downloadStartDate = ref('')
@@ -192,8 +203,7 @@ function handleTriggerDebug() {
     return
   }
 
-  debugResultData.value = matched
-  isDebugModalOpen.value = true
+  handleOpenDetail(matched)
 }
 
 onMounted(async () => {
@@ -280,7 +290,7 @@ onUnmounted(() => {
     </div>
     <!-- 卡片网格布局 -->
     <div v-if="!isNetlify" class="gap-4 grid grid-cols-1 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
-      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @timestamp-selected="handleTimestampSelected" />
+      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @open-detail="handleOpenDetail" />
     </div>
 
     <!-- 加载指示器 -->
@@ -302,9 +312,9 @@ onUnmounted(() => {
       </div>
     </template>
 
-    <!-- 调试结果弹窗 -->
-    <AppModal v-model:open="isDebugModalOpen" title="调试分析结果" width="900px">
-      <DebugResultViewer v-if="debugResultData" :result="debugResultData" :api-url="apiUrl" />
+    <!-- 分析详情弹窗（卡片点击与单点调试共用） -->
+    <AppModal v-model:open="isDetailModalOpen" :title="detailModalTitle" width="900px">
+      <DebugResultViewer v-if="detailResult" :result="detailResult" :api-url="apiUrl" />
     </AppModal>
   </div>
 </template>

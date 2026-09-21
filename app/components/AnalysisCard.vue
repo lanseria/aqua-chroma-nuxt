@@ -7,13 +7,12 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (e: 'timestamp-selected', timestamp: number): void
+  (e: 'open-detail', item: AnalysisResult): void
 }>()
 
 // URL
 const runtimeConfig = useRuntimeConfig()
 const apiUrl = runtimeConfig.public.apiUrl
-console.log(apiUrl)
 // 根据百分比动态计算颜色
 function getAquaColor(percentage: number) {
   const hue = (percentage / 100) * 120
@@ -28,8 +27,8 @@ function getCloudColor(percentage: number) {
 const seaBluenessPercentage = computed(() => (props.item.sea_blueness ?? 0) * 100)
 const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) * 100)
 
-function selectTimestamp() {
-  emits('timestamp-selected', props.item.timestamp)
+function openDetail() {
+  emits('open-detail', props.item)
 }
 
 // 图片预览
@@ -47,12 +46,13 @@ function openPreview(index: number) {
 </script>
 
 <template>
-  <div class="p-4 border border-gray-200 rounded-lg bg-white flex flex-col shadow-sm transition-all duration-300 space-y-3 dark:border-gray-700 dark:bg-gray-800 hover:shadow-lg hover:-translate-y-1" @click="selectTimestamp">
+  <div class="group p-4 border border-gray-200 rounded-lg bg-white flex flex-col cursor-pointer shadow-sm transition-all duration-300 space-y-3 dark:border-gray-700 dark:bg-gray-800 hover:shadow-lg hover:-translate-y-1" @click="openDetail">
     <!-- 头部信息 -->
     <div class="flex items-center justify-between">
       <span class="text-sm text-gray-500 font-mono dark:text-gray-400">
         {{ format(fromUnixTime(item.timestamp), 'yyyy-MM-dd HH:mm') }}
       </span>
+      <div class="i-carbon-chevron-right text-gray-300 h-4 w-4 transition-colors dark:text-gray-600 group-hover:text-teal-500 dark:group-hover:text-teal-400" />
     </div>
 
     <!-- 进度条 -->
