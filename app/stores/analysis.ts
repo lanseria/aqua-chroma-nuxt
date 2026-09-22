@@ -55,9 +55,31 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
+  // 删除指定时间戳的记录，成功后同步移除本地列表
+  async function deleteResult(timestamp: number) {
+    const toast = useToast()
+    try {
+      const response = await $fetch<{ code: number, msg: string }>(
+        `/api/results/${timestamp}`,
+        { method: 'DELETE' },
+      )
+
+      if (response.code !== 200)
+        throw new Error(response.msg || '接口返回异常')
+
+      results.value = results.value.filter(item => item.timestamp !== timestamp)
+      toast.success('已删除该条数据')
+    }
+    catch (error: any) {
+      console.error('删除分析结果时发生错误:', error)
+      toast.error(`删除失败: ${error.message}`)
+    }
+  }
+
   return {
     results,
     loadingProgress,
     fetchResults,
+    deleteResult,
   }
 })

@@ -74,6 +74,10 @@ function handleOpenDetail(item: AnalysisResult) {
   isDetailModalOpen.value = true
 }
 
+function handleDelete(item: AnalysisResult) {
+  analysisStore.deleteResult(item.timestamp)
+}
+
 // --- 批量下载相关状态与逻辑 ---
 const downloadStartDate = ref('')
 const downloadEndDate = ref('')
@@ -283,7 +287,7 @@ onUnmounted(() => {
     </div>
     <!-- 卡片网格布局 -->
     <div v-if="!isNetlify" class="gap-4 grid grid-cols-1 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
-      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @open-detail="handleOpenDetail" />
+      <AnalysisCard v-for="item in displayedResults" :key="item.timestamp" :item="item" @open-detail="handleOpenDetail" @delete="handleDelete" />
     </div>
 
     <!-- 加载指示器 -->

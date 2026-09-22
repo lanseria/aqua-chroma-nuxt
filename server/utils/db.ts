@@ -41,6 +41,20 @@ export async function queryResults(cutoffTimestamp: number, lastTimestamp: numbe
   }
 }
 
+export async function deleteResultByTimestamp(timestamp: number): Promise<boolean> {
+  const client: PoolClient = await getPool().connect()
+  try {
+    const { rowCount } = await client.query(
+      'DELETE FROM analysis_results WHERE timestamp = $1',
+      [timestamp],
+    )
+    return (rowCount ?? 0) > 0
+  }
+  finally {
+    client.release()
+  }
+}
+
 interface QueryRow {
   timestamp: number
   status: string

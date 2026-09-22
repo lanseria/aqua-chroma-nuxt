@@ -8,6 +8,7 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'open-detail', item: AnalysisResult): void
+  (e: 'delete', item: AnalysisResult): void
 }>()
 
 // URL
@@ -31,6 +32,21 @@ function openDetail() {
   emits('open-detail', props.item)
 }
 
+// 删除按钮：两段式确认，3 秒内再次点击才触发删除
+const isConfirmingDelete = ref(false)
+let confirmTimer: ReturnType<typeof setTimeout> | undefined
+
+function handleDeleteClick() {
+  if (!isConfirmingDelete.value) {
+    isConfirmingDelete.value = true
+    confirmTimer = setTimeout(() => (isConfirmingDelete.value = false), 3000)
+    return
+  }
+  clearTimeout(confirmTimer)
+  isConfirmingDelete.value = false
+  emits('delete', props.item)
+}
+
 // 图片预览
 const isPreviewOpen = ref(false)
 const previewIndex = ref(0)
@@ -52,7 +68,19 @@ function openPreview(index: number) {
       <span class="text-sm text-gray-500 font-mono dark:text-gray-400">
         {{ format(fromUnixTime(item.timestamp), 'yyyy-MM-dd HH:mm') }}
       </span>
-      <div class="i-carbon-chevron-right text-gray-300 h-4 w-4 transition-colors dark:text-gray-600 group-hover:text-teal-500 dark:group-hover:text-teal-400" />
+      <div class="flex gap-1 items-center">
+        <button
+          class="p-1 rounded transition-colors"
+          :class="isConfirmingDelete
+            ? 'bg-red-100 text-red-500 dark:bg-red-900/40'
+            : 'text-gray-300 hover:text-red-500 hover:bg-red-50 dark:text-gray-600 dark:hover:bg-red-900/30'"
+          :title="isConfirmingDelete ? '再次点击确认删除' : '删除该条数据'"
+          @click.stop="handleDeleteClick"
+        >
+          <div :class="isConfirmingDelete ? 'i-carbon-checkmark' : 'i-carbon-trash-can'" class="h-4 w-4" />
+        </button>
+        <div class="i-carbon-chevron-right text-gray-300 h-4 w-4 transition-colors dark:text-gray-600 group-hover:text-teal-500 dark:group-hover:text-teal-400" />
+      </div>
     </div>
 
     <!-- 进度条 -->
