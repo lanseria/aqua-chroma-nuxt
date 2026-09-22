@@ -5,6 +5,7 @@ dist
 .output
 .nuxt
 .env
+.env.production
 .idea/
 public/assets/fonts
 ai/project_context.txt

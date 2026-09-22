@@ -20,7 +20,7 @@ pnpm typecheck     # TypeScript 类型检查
 - **UI**: Arco Design Vue + UnoCSS
 - **Charts**: ECharts (via `nuxt-echarts`, canvas renderer)
 - **State**: Pinia
-- **Database**: Supabase (direct client query, no ORM)
+- **Database**: PostgreSQL via Nitro server routes (`pg` pool, no ORM)
 - **HTTP**: Axios (with interceptors for debug API)
 - **Styling**: UnoCSS atomic classes, `@nuxtjs/color-mode` for dark/light themes
 - **Linting**: `@antfu/eslint-config` with UnoCSS and Vue rules
@@ -30,7 +30,7 @@ pnpm typecheck     # TypeScript 类型检查
 
 ### Data Flow
 
-1. **Supabase** is the primary data source — the Pinia store (`analysisStore`) queries `analysis_results` table directly using cursor-based pagination (batch size 1000, ordered by `timestamp DESC`).
+1. **PostgreSQL** (Nitro server-side) is the primary data source — the server route `server/api/results.get.ts` queries the `analysis_results` table directly using `pg` with cursor-based pagination (batch size 1000, ordered by `timestamp DESC`); the Pinia store (`analysisStore`) fetches it via same-origin `/api/results?days=N`.
 2. **Axios** is used only for the debug API (`/api/debug/analyze/:timestamp`) — the base URL switches between `/api` (dev proxy) and the production URL based on `import.meta.env.DEV`.
 3. **Images** are served from the backend at `${apiUrl}/output/${timestamp}/` with files like `01_input_processed.png` and `04_hsv_classification.png`.
 
@@ -60,16 +60,15 @@ interface AnalysisResult {
 - `ThemeToggle` — dark/light switch synced with Arco Design.
 - `ProgressBar` — top-of-page loading progress indicator.
 
-### Supabase Client
+### Database Access
 
-Created in `app/composables/useSupabase.ts` — reads `supabaseUrl` and `supabaseKey` from Nuxt runtime config. No server-side Supabase usage.
+`server/utils/db.ts` holds a shared `pg` Pool built from `DATABASE_URL`; `server/api/results.get.ts` exposes `GET /api/results?days=N` (same-origin, consumed by the Pinia store). No client-side database access.
 
 ## Environment Variables
 
 ```env
 NUXT_PUBLIC_API_URL=
-NUXT_PUBLIC_SUPABASE_URL=<url>
-NUXT_PUBLIC_SUPABASE_KEY=<key>
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
 ```
 
 ## Conventions
