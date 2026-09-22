@@ -5,6 +5,8 @@ services:
       - '19997:3000'
     env_file:
       - .env.production
+    networks:
+      - shared_app_net
     restart: unless-stopped
 
 networks:
