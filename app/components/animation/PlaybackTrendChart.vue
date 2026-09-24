@@ -29,6 +29,13 @@ const isDark = computed(() => colorMode.value === 'dark')
 
 provide(THEME_KEY, computed(() => isDark.value ? 'dark' : 'default'))
 
+// 海蓝程度取值：优先综合海蓝指数 blueness_index（v1/v2 同义，均含云量折减）；
+// 极老记录回填缺失时退回 sea_blueness（v1 口径本身即含云折减，语义一致）
+function bluenessPercent(r: AnalysisResult): number {
+  const v = r.blueness_index ?? r.sea_blueness
+  return (v ?? 0) * 100
+}
+
 // 关闭动画，保证播放头逐帧移动时不产生滞后拖影
 const chartOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -100,7 +107,7 @@ const chartOption = computed<EChartsOption>(() => ({
       smooth: true,
       sampling: 'lttb',
       showSymbol: false,
-      data: props.frames.map(r => (r.sea_blueness ?? 0) * 100),
+      data: props.frames.map(r => bluenessPercent(r)),
       itemStyle: { color: '#3b82f6' },
       lineStyle: { width: 2 },
       areaStyle: {

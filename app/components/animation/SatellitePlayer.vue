@@ -86,8 +86,11 @@ watch(currentUrl, (url) => {
 
 const currentItem = computed(() => props.frames[activeIndex.value] ?? null)
 
-const seaBluenessLabel = computed(() =>
-  currentItem.value?.sea_blueness != null ? `${(currentItem.value.sea_blueness * 100).toFixed(1)}%` : '--')
+// 海蓝程度显示：优先综合海蓝指数（新旧口径同义，均含云量折减）
+const seaBluenessLabel = computed(() => {
+  const v = currentItem.value?.blueness_index ?? currentItem.value?.sea_blueness
+  return v != null ? `${(v * 100).toFixed(1)}%` : '--'
+})
 const cloudCoverageLabel = computed(() =>
   currentItem.value?.cloud_coverage != null ? `${(currentItem.value.cloud_coverage * 100).toFixed(1)}%` : '--')
 </script>

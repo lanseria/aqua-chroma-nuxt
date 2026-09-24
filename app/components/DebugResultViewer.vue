@@ -15,8 +15,11 @@ interface PipelineImage {
 }
 
 // 后端 (aqua-chroma) pipeline 各阶段生成的调试图
+// 说明：后端升级 Real-ESRGAN 后，01 是超分前的干净输入，01b 是 4x 高清化结果（分析实际输入）。
+// 历史数据无 01b，模板 onerror 会以占位符代替。
 const pipelineImages: PipelineImage[] = [
-  { filename: '01_input_processed.png', label: '原始输入', description: '预处理放大后的干净输入图（分析口径）' },
+  { filename: '01_input_processed.png', label: '原始输入', description: '高清化前的干净输入图' },
+  { filename: '01b_superresolved.png', label: '高清化 (ESRGAN)', description: 'Real-ESRGAN 4x 超分（分析实际输入）' },
   { filename: '01_input_annotated.png', label: '地理标注', description: '叠加陆地边界与城市点位' },
   { filename: '02_auto_balanced.png', label: '色彩均衡', description: 'CLAHE 亮度与对比度增强' },
   { filename: '03_ocean_only.png', label: '海域提取', description: '按 GeoJSON 蒙版遮蔽陆地' },
@@ -34,15 +37,33 @@ const pipelineImages: PipelineImage[] = [
 
 const statusLabels: Record<AnalysisResult['status'], string> = {
   completed: '已完成',
+  cloudy: '云层过厚',
   night: '夜间',
 }
 
-const hasImages = computed(() => props.result.status === 'completed')
+const hasImages = computed(() => props.result.status === 'completed' || props.result.status === 'cloudy')
+
+// 指标口径（metric_version）决定 sea_blueness 的语义：
+// v1 = 蓝水/全部海洋（含云）；v2 = 蓝水/可见水体（与云无关）。
+const metricNote = computed(() =>
+  props.result.metric_version >= 2
+    ? '可见水体蓝色占比（新口径，与云量无关）'
+    : '蓝色占比（旧口径，分母含云）')
 
 const formattedData = computed(() => [
   { label: '时间', value: format(fromUnixTime(props.result.timestamp), 'yyyy-MM-dd HH:mm:ss') },
   { label: '状态', value: statusLabels[props.result.status] ?? props.result.status },
-  { label: '海蓝程度', value: props.result.sea_blueness !== null ? `${(props.result.sea_blueness * 100).toFixed(4)}%` : 'N/A' },
+  { label: '指标口径', value: `v${props.result.metric_version >= 2 ? 2 : 1}（${metricNote.value}）` },
+  {
+    label: '海蓝程度',
+    value: props.result.sea_blueness !== null ? `${(props.result.sea_blueness * 100).toFixed(4)}%` : 'N/A',
+    hint: metricNote.value,
+  },
+  {
+    label: '综合海蓝指数',
+    value: props.result.blueness_index !== null ? `${(props.result.blueness_index * 100).toFixed(4)}%` : 'N/A',
+    hint: '海蓝程度 × (1 − 云量)',
+  },
   { label: '云层覆盖率', value: props.result.cloud_coverage !== null ? `${(props.result.cloud_coverage * 100).toFixed(4)}%` : 'N/A' },
 ])
 
@@ -72,11 +93,15 @@ function openPreview(filename: string) {
       </h3>
       <dl class="p-3 border rounded-lg bg-gray-50 gap-x-4 gap-y-2 grid grid-cols-[auto_1fr] dark:border-gray-700 dark:bg-gray-800">
         <template v-for="item in formattedData" :key="item.label">
-          <dt class="text-gray-600 font-medium dark:text-gray-400">
+          <dt class="text-gray-600 font-medium dark:text-gray-400" :title="(item as any).hint">
             {{ item.label }}:
           </dt>
           <dd class="text-gray-800 font-mono dark:text-gray-200">
             {{ item.value }}
+            <span
+              v-if="(item as any).hint"
+              class="text-xs text-gray-400 font-sans ml-1 dark:text-gray-500"
+            >({{ (item as any).hint }})</span>
           </dd>
         </template>
       </dl>
@@ -90,9 +115,8 @@ function openPreview(filename: string) {
 
       <div v-if="!hasImages" class="text-gray-400 py-12 border rounded-lg border-dashed flex flex-col gap-2 items-center dark:border-gray-600">
         <div class="i-carbon-moon h-8 w-8" />
-        <span class="text-sm">该时间点为夜间，未生成分析图像</span>
+        <span class="text-sm">{{ props.result.status === 'cloudy' ? '该时间点云层过厚' : '该时间点为夜间' }}，未生成分析图像</span>
       </div>
-
       <template v-else>
         <div class="gap-4 grid grid-cols-2 sm:grid-cols-3">
           <div v-for="img in pipelineImages" :key="img.filename">

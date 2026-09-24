@@ -35,8 +35,10 @@ const currentFrame = computed(() => frames.value[currentIndex.value] ?? null)
 const previewIndex = shallowRef<number | null>(null)
 
 // 图像图层：后端 (aqua-chroma) pipeline 生成的可视化图，默认原图
+// （历史数据无 01b 高清化图，播放到对应帧时图片加载失败会显示暂无画面）
 const imageLayerOptions = [
   { label: '原图', value: '01_input_processed.png' },
+  { label: '高清化图', value: '01b_superresolved.png' },
   { label: '标注图', value: '01_input_annotated.png' },
   { label: '分类图', value: '04_hsv_classification.png' },
 ]

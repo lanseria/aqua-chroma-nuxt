@@ -25,11 +25,20 @@ const isDark = computed(() => colorMode.value === 'dark')
 provide(THEME_KEY, computed(() => isDark.value ? 'dark' : 'default'))
 
 // --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
+// 状态口径：completed（晴好完成）与 cloudy（云量过高，水色值可信度低）都可能是
+// 有图像的记录，但 cloudy 的数值会误导趋势，这里仅绘制 completed。
 const chartData = computed(() =>
   props.results
     .filter(r => r.status === 'completed' && r.sea_blueness !== null)
     .sort((a, b) => a.timestamp - b.timestamp),
 )
+
+// 海蓝程度取值：优先使用综合海蓝指数 blueness_index（v1/v2 同义，均含云量折减）；
+// 极老记录回填缺失时退回 sea_blueness（v1 口径本身即含云折减，语义一致）
+function bluenessPercent(r: AnalysisResult): number {
+  const v = r.blueness_index ?? r.sea_blueness
+  return (v ?? 0) * 100
+}
 
 // --- 计算日期分隔线 ---
 const dateMarkLines = computed(() => {
@@ -67,10 +76,15 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: {
       text: '海蓝程度趋势分析 (点击数据点查看详情)',
+      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)，夜间与云量过高的记录不绘制',
       left: 'center',
       textStyle: {
         fontSize: 16, // 调整字体大小以适应更长的标题
         color: isDark.value ? '#e5e7eb' : '#374151',
+      },
+      subtextStyle: {
+        fontSize: 11,
+        color: isDark.value ? '#9ca3af' : '#6b7280',
       },
     },
     tooltip: {
@@ -141,7 +155,7 @@ const chartOption = computed<EChartsOption>(() => {
         type: 'line',
         smooth: true,
         sampling: 'lttb', // --- 新增：开启降采样优化 ---
-        data: chartData.value.map(r => (r.sea_blueness ?? 0) * 100),
+        data: chartData.value.map(r => bluenessPercent(r)),
         itemStyle: { color: '#3b82f6' },
         cursor: 'pointer',
         areaStyle: {

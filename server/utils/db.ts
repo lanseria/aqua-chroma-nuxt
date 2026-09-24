@@ -27,7 +27,7 @@ export async function queryResults(cutoffTimestamp: number, lastTimestamp: numbe
   const client: PoolClient = await getPool().connect()
   try {
     const { rows } = await client.query<QueryRow>(
-      `SELECT timestamp, status, sea_blueness, cloud_coverage
+      `SELECT timestamp, status, metric_version, sea_blueness, cloud_coverage, blueness_index
        FROM analysis_results
        WHERE timestamp < $1 AND timestamp >= $2
        ORDER BY timestamp DESC
@@ -58,6 +58,8 @@ export async function deleteResultByTimestamp(timestamp: number): Promise<boolea
 interface QueryRow {
   timestamp: number
   status: string
+  metric_version: number
   sea_blueness: number | null
   cloud_coverage: number | null
+  blueness_index: number | null
 }

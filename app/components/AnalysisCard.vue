@@ -25,8 +25,15 @@ function getCloudColor(percentage: number) {
   return `hsl(0, 0%, ${lightness}%)`
 }
 
-const seaBluenessPercentage = computed(() => (props.item.sea_blueness ?? 0) * 100)
+const seaBluenessPercentage = computed(() => {
+  // 优先综合海蓝指数（新旧口径同义，均含云量折减）；缺失时退回 sea_blueness（仅 v1 有此情况）
+  const v = props.item.blueness_index ?? props.item.sea_blueness
+  return (v ?? 0) * 100
+})
 const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) * 100)
+
+// 云量过高的记录在卡片上打上标记，提示水色数值可信度低
+const isCloudy = computed(() => props.item.status === 'cloudy')
 
 function openDetail() {
   emits('open-detail', props.item)
@@ -47,13 +54,20 @@ function handleDeleteClick() {
   emits('delete', props.item)
 }
 
-// 图片预览
+// 图片预览（历史数据无 01b 高清化图，onerror 时从预览列表剔除）
 const isPreviewOpen = ref(false)
 const previewIndex = ref(0)
-const previewImages = computed(() => [
-  { src: `${apiUrl}/${props.item.output_directory}/01_input_processed.png`, alt: '原图' },
-  { src: `${apiUrl}/${props.item.output_directory}/04_hsv_classification.png`, alt: '分类结果' },
-])
+const superResFailed = ref(false)
+const classFailed = ref(false)
+const previewImages = computed(() => {
+  const list = [
+    { src: `${apiUrl}/${props.item.output_directory}/01_input_processed.png`, alt: '原图' },
+    { src: `${apiUrl}/${props.item.output_directory}/01b_superresolved.png`, alt: '高清化' },
+    { src: `${apiUrl}/${props.item.output_directory}/04_hsv_classification.png`, alt: '分类结果' },
+  ]
+  return list.filter(img =>
+    (img.alt !== '高清化' || !superResFailed.value) && (img.alt !== '分类结果' || !classFailed.value))
+})
 
 function openPreview(index: number) {
   previewIndex.value = index
@@ -69,6 +83,11 @@ function openPreview(index: number) {
         {{ format(fromUnixTime(item.timestamp), 'yyyy-MM-dd HH:mm') }}
       </span>
       <div class="flex gap-1 items-center">
+        <span
+          v-if="isCloudy"
+          class="text-xs text-amber-700 font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:text-amber-300 dark:bg-amber-900/40"
+          title="云量 ≥ 50%，水色数值可信度低"
+        >云厚</span>
         <button
           class="p-1 rounded transition-colors"
           :class="isConfirmingDelete
@@ -99,16 +118,28 @@ function openPreview(index: number) {
 
     <!-- 调试图片 -->
     <div class="pt-2" @click.stop>
-      <div class="gap-2 grid grid-cols-2">
+      <div class="gap-2 grid grid-cols-3">
         <div>
           <p class="text-xs text-gray-500 mb-1 text-center">
             原图
           </p>
           <img
             :src="`${apiUrl}/${item.output_directory}/01_input_processed.png`"
-            alt="Ocean Only"
+            alt="Input"
             class="border border-gray-200 rounded-md w-full aspect-square cursor-zoom-in object-cover dark:border-gray-600"
             @click="openPreview(0)"
+          >
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 mb-1 text-center">
+            高清化
+          </p>
+          <img
+            :src="`${apiUrl}/${item.output_directory}/01b_superresolved.png`"
+            alt="Super Resolved"
+            class="border border-gray-200 rounded-md w-full aspect-square cursor-zoom-in object-cover dark:border-gray-600"
+            @error="superResFailed = true"
+            @click="openPreview(superResFailed ? 0 : 1)"
           >
         </div>
         <div>
@@ -117,9 +148,10 @@ function openPreview(index: number) {
           </p>
           <img
             :src="`${apiUrl}/${item.output_directory}/04_hsv_classification.png`"
-            alt="K-Means Classification"
+            alt="HSV Classification"
             class="border border-gray-200 rounded-md w-full aspect-square cursor-zoom-in object-cover dark:border-gray-600"
-            @click="openPreview(1)"
+            @error="classFailed = true"
+            @click="openPreview(2)"
           >
         </div>
       </div>

@@ -3,13 +3,20 @@ import { ref } from 'vue'
 
 /**
  * 分析结果的数据结构
+ *
+ * 指标口径（metric_version）：
+ * - v1（存量历史数据）: sea_blueness = 蓝水像素 / 全部海洋像素（含云，受云量压制）
+ * - v2（新口径）: sea_blueness = 蓝水 / 可见水体（与云量无关），
+ *    blueness_index = sea_blueness * (1 - cloud_coverage) 承接 v1 的综合语义
  */
 export interface AnalysisResult {
   id?: number
   timestamp: number // Unix 时间戳 (秒)
-  status: 'completed' | 'night' | string
+  status: 'completed' | 'cloudy' | 'night' | string
+  metric_version: number // 1 = 旧口径（含云），2 = 新口径（可见水体）
   sea_blueness: number | null // 0-1 的浮点数或 null
   cloud_coverage: number | null // 0-1 的浮点数或 null
+  blueness_index: number | null // 综合海蓝指数（仅 v2 / 已回填的 v1-completed 有值）
   output_directory: string
 }
 
@@ -39,8 +46,10 @@ export const useAnalysisStore = defineStore('analysis', () => {
         throw new Error(response.msg || '接口返回异常')
 
       // 格式化数据（服务端已按 timestamp 倒序返回）
+      // metric_version 兜底为 1（该列加入之前的极老记录视为旧口径）
       results.value = response.data.map(item => ({
         ...item,
+        metric_version: item.metric_version ?? 1,
         output_directory: `output/${item.timestamp}`,
       }))
       loadingProgress.value = results.value.length
