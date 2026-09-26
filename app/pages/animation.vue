@@ -39,13 +39,29 @@ const previewIndex = shallowRef<number | null>(null)
 const imageLayerOptions = [
   { label: '原图', value: '01_input_processed.png' },
   { label: '高清化图', value: '01b_superresolved.png' },
-  { label: '标注图', value: '01_input_annotated.png' },
   { label: '分类图', value: '04_hsv_classification.png' },
 ]
 const activeLayer = ref(imageLayerOptions[0]!.value)
 
-const frameUrls = computed(() =>
-  frames.value.map(f => `${apiUrl}/${f.output_directory}/${activeLayer.value}`))
+// 视图布局：single 单图层展示（默认），triple 三种图层同步展示
+const viewLayout = ref<'single' | 'triple'>('single')
+
+// 地图标注：叠加陆地边界与城市点位（对齐后端 01_input_annotated.png 的样式）
+// 开关与样式配置均持久化到 localStorage，刷新后保持用户的查看偏好
+const showAnnotation = useLocalStorage('aqua:annotation-show', false)
+const annotationConfig = useLocalStorage('aqua:annotation-config', defaultAnnotationConfig)
+
+function layerUrls(file: string) {
+  return frames.value.map(f => `${apiUrl}/${f.output_directory}/${file}`)
+}
+
+// 播放器图层列表：单视图仅展示选中图层，三图同步展示全部图层
+const playerLayers = computed(() => {
+  if (viewLayout.value === 'triple')
+    return imageLayerOptions.map(o => ({ label: o.label, urls: layerUrls(o.value) }))
+  const active = imageLayerOptions.find(o => o.value === activeLayer.value)!
+  return [{ label: active.label, urls: layerUrls(active.value) }]
+})
 
 async function handleRangeChange() {
   isFetching.value = true
@@ -98,11 +114,13 @@ onUnmounted(() => {
       <div class="flex flex-col gap-4 lg:h-[calc(100vh-300px)] lg:min-h-560px">
         <SatellitePlayer
           class="min-w-0 aspect-square lg:flex-1 lg:min-h-0 lg:aspect-auto"
-          :urls="frameUrls"
+          :layers="playerLayers"
           :frames="frames"
           :current-index="currentIndex"
           :fps="fps"
           :preview-index="previewIndex"
+          :annotated="showAnnotation"
+          :annotation-config="annotationConfig"
         />
 
         <!-- 底部控制台：播放控制 + 时间轴曲线 -->
@@ -110,6 +128,9 @@ onUnmounted(() => {
           <PlaybackControls
             v-model:fps="fps"
             v-model:layer="activeLayer"
+            v-model:layout="viewLayout"
+            v-model:annotation="showAnnotation"
+            v-model:config="annotationConfig"
             :is-playing="isPlaying"
             :frame-count="frames.length"
             :current-index="currentIndex"

@@ -1,88 +1,35 @@
 <script lang="ts" setup>
 import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime } from 'date-fns'
+import LayerPanel from './LayerPanel.vue'
+
+interface PlayerLayer {
+  label: string
+  urls: string[]
+}
 
 const props = defineProps<{
-  urls: string[]
+  layers: PlayerLayer[]
   frames: AnalysisResult[]
   currentIndex: number
   fps?: number
   /** 悬停预览帧索引（图表 hover 时临时接管显示），null 时回落到当前播放帧 */
   previewIndex?: number | null
+  /** 是否叠加陆地边界与城市标注 */
+  annotated?: boolean
+  /** 标注渲染配置（粗细、颜色、城市名等） */
+  annotationConfig?: AnnotationConfig
 }>()
-
-// 淡化时长随播放速度自适应：高速播放时接近硬切，避免长时间停留在半透明中间态
-const fadeDuration = computed(() => `${Math.max(40, Math.min(160, Math.floor(1000 / (props.fps ?? 4) * 0.6)))}ms`)
 
 // 实际展示帧：预览优先，其次播放进度
 const activeIndex = computed(() => props.previewIndex ?? props.currentIndex)
 
-// 双层交叉淡入淡出
-const layerASrc = shallowRef('')
-const layerBSrc = shallowRef('')
-const showA = shallowRef(true)
-
-// 预加载：Map 按插入顺序淘汰旧图，控制内存占用
-const MAX_CACHE = 240
-const LOOKAHEAD = 16
-const imageCache = new Map<string, HTMLImageElement>()
-
-function getImage(url: string) {
-  let img = imageCache.get(url)
-  if (!img) {
-    img = new Image()
-    img.decoding = 'async'
-    img.src = url
-    imageCache.set(url, img)
-    while (imageCache.size > MAX_CACHE) {
-      const oldest = imageCache.keys().next().value
-      if (oldest === undefined)
-        break
-      imageCache.delete(oldest)
-    }
-  }
-  return img
-}
-
-// 解码门控：等待目标图片完成解码后再切换图层，避免播放中闪出空白/半加载画面。
-// 世代令牌：快速换帧或拖动进度条时丢弃过期的解码结果，防止旧帧乱序切入。
-let swapToken = 0
-
-async function displayFrame(url: string) {
-  const token = ++swapToken
-  const img = getImage(url)
-  try {
-    await img.decode()
-  }
-  catch {
-    return // 图片加载失败，保持当前画面
-  }
-  if (token !== swapToken)
-    return // 已有更新的帧到达，放弃过期切换
-
-  if (showA.value) {
-    layerBSrc.value = url
-    showA.value = false
-  }
-  else {
-    layerASrc.value = url
-    showA.value = true
-  }
-}
-
-const currentUrl = computed(() => props.urls[activeIndex.value] ?? '')
-
-watch(currentUrl, (url) => {
-  if (!url)
-    return
-  // 预取当前帧与后续若干帧，保证播放流畅
-  displayFrame(url)
-  for (let i = 1; i <= LOOKAHEAD; i++) {
-    const next = props.urls[activeIndex.value + i] ?? ''
-    if (next)
-      getImage(next)
-  }
-}, { immediate: true })
+// 多图层同步视图：每个面板独立铺满一格；单视图占满整个播放器
+const isMultiLayer = computed(() => props.layers.length > 1)
+const panelWrapClass = computed(() =>
+  isMultiLayer.value ? 'grid h-full w-full grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:p-2' : 'h-full w-full')
+const panelItemClass = computed(() =>
+  isMultiLayer.value ? 'min-h-0 aspect-square lg:aspect-auto lg:rounded-lg' : '')
 
 const currentItem = computed(() => props.frames[activeIndex.value] ?? null)
 
@@ -91,34 +38,27 @@ const seaBluenessLabel = computed(() => {
   const v = currentItem.value?.blueness_index ?? currentItem.value?.sea_blueness
   return v != null ? `${(v * 100).toFixed(1)}%` : '--'
 })
-const cloudCoverageLabel = computed(() =>
-  currentItem.value?.cloud_coverage != null ? `${(currentItem.value.cloud_coverage * 100).toFixed(1)}%` : '--')
+const cloudCoverageLabel = computed(() => {
+  const v = currentItem.value?.cloud_coverage
+  return v != null ? `${(v * 100).toFixed(1)}%` : '--'
+})
 </script>
 
 <template>
   <div class="border border-gray-200 rounded-xl bg-gray-900 shadow-sm relative overflow-hidden dark:border-gray-700 dark:bg-black">
-    <!-- 两层图片交叉淡入淡出 -->
-    <img
-      v-if="layerASrc"
-      :src="layerASrc"
-      alt="卫星图像"
-      class="h-full w-full transition-opacity inset-0 absolute object-contain"
-      :class="showA ? 'opacity-100' : 'opacity-0'"
-      :style="{ transitionDuration: fadeDuration }"
-    >
-    <img
-      v-if="layerBSrc"
-      :src="layerBSrc"
-      alt="卫星图像"
-      class="h-full w-full transition-opacity inset-0 absolute object-contain"
-      :class="showA ? 'opacity-0' : 'opacity-100'"
-      :style="{ transitionDuration: fadeDuration }"
-    >
-
-    <!-- 无画面占位 -->
-    <div v-if="!currentUrl" class="text-gray-500 flex flex-col gap-3 items-center inset-0 justify-center absolute">
-      <div class="i-carbon-image h-10 w-10" />
-      <span class="text-sm">暂无画面</span>
+    <!-- 单视图铺满；多图层视图按格分区，移动端纵向堆叠 -->
+    <div :class="panelWrapClass">
+      <LayerPanel
+        v-for="layer in layers"
+        :key="layer.label"
+        :class="panelItemClass"
+        :urls="layer.urls"
+        :active-index="activeIndex"
+        :fps="fps"
+        :label="isMultiLayer ? layer.label : undefined"
+        :annotated="annotated"
+        :annotation-config="annotationConfig"
+      />
     </div>
 
     <!-- 覆盖信息层 -->
