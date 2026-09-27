@@ -18,10 +18,10 @@ const { results, loadingProgress } = storeToRefs(analysisStore)
 const selectedRange = ref(1)
 const isFetching = ref(false)
 
-// 播放帧：仅包含有图像的 completed 数据，按时间正序排列
+// 播放帧：completed 与 cloudy 记录都有完整图像（状态只是数据库质量标签），一并纳入避免时间轴出现空洞
 const frames = computed(() =>
   results.value
-    .filter(r => r.status === 'completed')
+    .filter(r => r.status === 'completed' || r.status === 'cloudy')
     .sort((a, b) => a.timestamp - b.timestamp))
 
 const { currentIndex, isPlaying, fps, toggle, step, seek } = usePlayback(

@@ -28,7 +28,8 @@ const displayedCount = ref(INITIAL_LOAD_COUNT)
 const isLoadingMore = ref(false)
 const allDataLoaded = computed(() => displayedCount.value >= results.value.length)
 
-const displayedResults = computed(() => results.value.filter(m => m.status === 'completed').slice(0, displayedCount.value))
+// cloudy 记录同样有图像与指标（卡片带"云量过高"标记），night 无分析结果不展示
+const displayedResults = computed(() => results.value.filter(m => m.status === 'completed' || m.status === 'cloudy').slice(0, displayedCount.value))
 
 async function handleRangeChange(val: string | number | boolean) {
   const days = Number(val)
@@ -119,7 +120,7 @@ async function handleBatchDownload() {
   const endTs = Math.floor(downloadDateRange.value[1]! / 1000) + 86399
 
   const targetItems = results.value
-    .filter(item => item.timestamp >= startTs && item.timestamp <= endTs && item.status === 'completed')
+    .filter(item => item.timestamp >= startTs && item.timestamp <= endTs && (item.status === 'completed' || item.status === 'cloudy'))
     .sort((a, b) => a.timestamp - b.timestamp)
 
   if (targetItems.length === 0) {
