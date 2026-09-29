@@ -25,11 +25,11 @@ const isDark = computed(() => colorMode.value === 'dark')
 provide(THEME_KEY, computed(() => isDark.value ? 'dark' : 'default'))
 
 // --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
-// 状态口径：completed（晴好完成）与 cloudy（云量过高，水色值可信度低）都可能是
-// 有图像的记录，但 cloudy 的数值会误导趋势，这里仅绘制 completed。
+// 状态口径：completed 与 cloudy（云量偏高）都有指标值，均参与绘制；
+// night / error / download_failed 无指标，按“有数值”过滤即可排除。
 const chartData = computed(() =>
   props.results
-    .filter(r => r.status === 'completed' && r.sea_blueness !== null)
+    .filter(r => r.sea_blueness !== null)
     .sort((a, b) => a.timestamp - b.timestamp),
 )
 
@@ -76,7 +76,7 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: {
       text: '海蓝程度趋势分析 (点击数据点查看详情)',
-      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)，夜间与云量过高的记录不绘制',
+      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)，夜间等无指标的记录不绘制',
       left: 'center',
       textStyle: {
         fontSize: 16, // 调整字体大小以适应更长的标题
