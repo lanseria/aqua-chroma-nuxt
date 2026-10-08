@@ -49,7 +49,7 @@ const chartOption = computed<EChartsOption>(() => ({
     valueFormatter: value => `${Number(value).toFixed(1)}%`,
   },
   legend: {
-    data: ['海蓝程度', '云层覆盖率'],
+    data: ['海蓝程度', '云层覆盖率', '能见度'],
     top: 0,
     right: 0,
     icon: 'roundRect',
@@ -82,21 +82,35 @@ const chartOption = computed<EChartsOption>(() => ({
       },
     },
   },
-  yAxis: {
-    type: 'value',
-    min: 0,
-    max: 100,
-    axisLabel: {
-      formatter: '{value}%',
-      color: isDark.value ? '#9ca3af' : '#6b7280',
-      fontSize: 10,
-    },
-    splitLine: {
-      lineStyle: {
-        color: isDark.value ? '#374151' : '#e5e7eb',
+  yAxis: [
+    {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: {
+        formatter: '{value}%',
+        color: isDark.value ? '#9ca3af' : '#6b7280',
+        fontSize: 10,
+      },
+      splitLine: {
+        lineStyle: {
+          color: isDark.value ? '#374151' : '#e5e7eb',
+        },
       },
     },
-  },
+    {
+      // 能见度（公里）独立右轴，上限 35km 与后端 config.VISIBILITY_MAX_KM 一致
+      type: 'value',
+      min: 0,
+      max: 35,
+      axisLabel: {
+        formatter: '{value}km',
+        color: isDark.value ? '#9ca3af' : '#6b7280',
+        fontSize: 10,
+      },
+      splitLine: { show: false },
+    },
+  ],
   dataZoom: [
     { type: 'inside' },
   ],
@@ -154,6 +168,23 @@ const chartOption = computed<EChartsOption>(() => ({
         opacity: 0.7,
       },
       z: 1,
+    },
+    {
+      name: '能见度',
+      type: 'line',
+      smooth: true,
+      sampling: 'lttb',
+      yAxisIndex: 1, // 绑定右侧 km 轴
+      showSymbol: false,
+      connectNulls: false, // 旧记录无能见度（null）时断开连线
+      data: props.frames.map(r => r.visibility_km),
+      itemStyle: { color: '#14b8a6' },
+      lineStyle: {
+        width: 1.5,
+        color: '#14b8a6',
+        opacity: 0.9,
+      },
+      z: 2,
     },
   ],
 }))

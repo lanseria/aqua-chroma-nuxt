@@ -27,9 +27,10 @@ provide(THEME_KEY, computed(() => isDark.value ? 'dark' : 'default'))
 // --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
 // 状态口径：completed 与 cloudy（云量偏高）都有指标值，均参与绘制；
 // night / error / download_failed 无指标，按“有数值”过滤即可排除。
+// 能见度参与绘制要求 visibility_km 非 null（旧记录该列为 NULL，不绘制该点）
 const chartData = computed(() =>
   props.results
-    .filter(r => r.sea_blueness !== null)
+    .filter(r => r.sea_blueness !== null || r.visibility_km !== null)
     .sort((a, b) => a.timestamp - b.timestamp),
 )
 
@@ -39,6 +40,9 @@ function bluenessPercent(r: AnalysisResult): number {
   const v = r.blueness_index ?? r.sea_blueness
   return (v ?? 0) * 100
 }
+
+// 能见度上限 35km（与后端 config.VISIBILITY_MAX_KM 一致），用于右侧 km 轴刻度
+const VISIBILITY_MAX_KM = 35
 
 // --- 计算日期分隔线 ---
 const dateMarkLines = computed(() => {
@@ -76,7 +80,7 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: {
       text: '海蓝程度趋势分析 (点击数据点查看详情)',
-      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)，夜间等无指标的记录不绘制',
+      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)；能见度在右侧 km 轴，云层遮蔽记 0',
       left: 'center',
       textStyle: {
         fontSize: 16, // 调整字体大小以适应更长的标题
@@ -97,11 +101,13 @@ const chartOption = computed<EChartsOption>(() => {
       formatter: (params: any) => {
         let result = `<div class="mb-1 font-medium text-xs">${params[0].axisValueLabel}</div>`
         params.forEach((item: any) => {
+          const isKm = item.seriesName === '能见度'
           const val = typeof item.value === 'number' ? item.value.toFixed(1) : '--'
+          const unit = isKm ? 'km' : '%'
           result += `
             <div class="flex items-center justify-between gap-3 text-xs">
               <span class="flex items-center gap-1">${item.marker} ${item.seriesName}</span>
-              <span class="font-bold font-mono">${val}%</span>
+              <span class="font-bold font-mono">${val}${unit}</span>
             </div>
           `
         })
@@ -109,7 +115,7 @@ const chartOption = computed<EChartsOption>(() => {
       },
     },
     legend: {
-      data: ['海蓝程度', '云层覆盖率'],
+      data: ['海蓝程度', '云层覆盖率', '能见度'],
       bottom: 0,
       textStyle: {
         color: isDark.value ? '#9ca3af' : '#4b5563',
@@ -131,20 +137,33 @@ const chartOption = computed<EChartsOption>(() => {
         color: isDark.value ? '#9ca3af' : '#6b7280',
       },
     },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLabel: {
-        formatter: '{value} %',
-        color: isDark.value ? '#9ca3af' : '#6b7280',
-      },
-      splitLine: {
-        lineStyle: {
-          color: isDark.value ? '#374151' : '#e5e7eb',
+    yAxis: [
+      {
+        type: 'value',
+        min: 0,
+        max: 100,
+        axisLabel: {
+          formatter: '{value} %',
+          color: isDark.value ? '#9ca3af' : '#6b7280',
+        },
+        splitLine: {
+          lineStyle: {
+            color: isDark.value ? '#374151' : '#e5e7eb',
+          },
         },
       },
-    },
+      {
+        type: 'value',
+        name: '能见度',
+        min: 0,
+        max: VISIBILITY_MAX_KM,
+        axisLabel: {
+          formatter: '{value} km',
+          color: isDark.value ? '#9ca3af' : '#6b7280',
+        },
+        splitLine: { show: false }, // 复用左轴网格线，避免双轴线条交叉
+      },
+    ],
     dataZoom: [
       { type: 'inside', start: 0, end: 100 },
       { start: 0, end: 100 },
@@ -211,6 +230,23 @@ const chartOption = computed<EChartsOption>(() => {
           color: '#9ca3af',
         },
         z: 1, // 渲染层级较低
+      },
+      {
+        name: '能见度',
+        type: 'line',
+        smooth: true,
+        sampling: 'lttb',
+        yAxisIndex: 1, // 绑定右侧 km 轴
+        showSymbol: false,
+        // 旧记录 visibility_km 为 null：断开连线，只绘制有值的区段
+        connectNulls: false,
+        data: chartData.value.map(r => r.visibility_km),
+        itemStyle: { color: '#14b8a6' },
+        lineStyle: {
+          width: 1.5,
+          color: '#14b8a6',
+        },
+        z: 2,
       },
     ],
   }

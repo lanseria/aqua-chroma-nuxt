@@ -1,6 +1,6 @@
 ## Project Overview
 
-Aqua Chroma（海蓝之心监控）— 基于 Nuxt 4 的实时监控仪表板，可视化展示图像分析后的"海蓝程度"和"云层覆盖率"数据。SSR 已关闭（SPA 模式），部署在 Netlify。
+Aqua Chroma（海蓝之心监控）— 基于 Nuxt 4 的实时监控仪表板，可视化展示图像分析后的"海蓝程度"、"云层覆盖率"和"能见度"数据。SSR 已关闭（SPA 模式），部署在 Netlify。
 
 ## Commands
 
@@ -39,9 +39,13 @@ pnpm typecheck     # TypeScript 类型检查
 ```typescript
 interface AnalysisResult {
   timestamp: number // Unix timestamp (seconds)
-  status: 'completed' | 'night'
+  status: 'completed' | 'cloudy' | 'night'
   sea_blueness: number | null // 0-1
   cloud_coverage: number | null // 0-1
+  blueness_index: number | null // 综合海蓝指数 = sea_blueness × (1 − cloud_coverage)
+  visibility_km: number | null // 能见度估算（公里）；云层遮蔽记 0，NULL = 旧记录/无法估算
+  visibility_level: string | null // 良好/中等/轻度霾雾/浓雾/云层遮蔽
+  haze_score: number | null // 大气浑浊度 0-1（0 极通透，1 浓雾）
   output_directory: string
 }
 ```
@@ -54,11 +58,11 @@ interface AnalysisResult {
 
 ### Component Roles
 
-- `TrendChart` — ECharts line chart with zoom, click-to-select timestamp.
-- `AnalysisCard` — single result card with before/after images.
-- `DebugResultViewer` — modal content for debug analysis results.
+- `TrendChart` — ECharts line chart with zoom, click-to-select timestamp; 双 Y 轴（左 %，右 km），绘制海蓝程度、云层覆盖率、能见度三条曲线。
+- `AnalysisCard` — single result card with before/after images; 能见度进度条按 km/35km 比例渲染（`VISIBILITY_MAX_KM`），`visibility_km` 为 null 的旧记录不展示该行。
+- `DebugResultViewer` — modal content for debug analysis results; 含能见度/大气浑浊度字段与 `05_dark_channel.png` 调试图。
 - `ThemeToggle` — dark/light switch synced with Arco Design.
-- `ProgressBar` — top-of-page loading progress indicator.
+- `ProgressBar` — top-of-page loading progress indicator; 支持 `displayValue` 覆盖右侧百分比文案（能见度显示 km）。
 
 ### Database Access
 

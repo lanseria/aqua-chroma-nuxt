@@ -27,7 +27,8 @@ export async function queryResults(cutoffTimestamp: number, lastTimestamp: numbe
   const client: PoolClient = await getPool().connect()
   try {
     const { rows } = await client.query<QueryRow>(
-      `SELECT timestamp, status, metric_version, sea_blueness, cloud_coverage, blueness_index
+      `SELECT timestamp, status, metric_version, sea_blueness, cloud_coverage, blueness_index,
+              visibility_km, visibility_level, haze_score
        FROM analysis_results
        WHERE timestamp < $1 AND timestamp >= $2
        ORDER BY timestamp DESC
@@ -62,4 +63,8 @@ interface QueryRow {
   sea_blueness: number | null
   cloud_coverage: number | null
   blueness_index: number | null
+  // 能见度估算（公里）：云量过厚时记 0（云顶遮蔽）；NULL = 早于该功能的记录或无法估算
+  visibility_km: number | null
+  visibility_level: string | null
+  haze_score: number | null
 }

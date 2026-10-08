@@ -17,6 +17,9 @@ export interface AnalysisResult {
   sea_blueness: number | null // 0-1 的浮点数或 null
   cloud_coverage: number | null // 0-1 的浮点数或 null
   blueness_index: number | null // 综合海蓝指数（仅 v2 / 已回填的 v1-completed 有值）
+  visibility_km: number | null // 能见度估算（公里）；云层遮蔽时为 0，NULL = 旧记录/无法估算
+  visibility_level: string | null // 等级标签：良好/中等/轻度霾雾/浓雾/云层遮蔽
+  haze_score: number | null // 大气浑浊度得分 0-1（调试用途）
   output_directory: string
 }
 

@@ -33,6 +33,7 @@ const pipelineImages: PipelineImage[] = [
       { label: '黄水', color: '#a17509' },
     ],
   },
+  { filename: '05_dark_channel.png', label: '暗通道', description: '能见度估算的浑浊度调试图（亮 = 大气浑浊）' },
 ]
 
 const statusLabels: Record<AnalysisResult['status'], string> = {
@@ -65,6 +66,18 @@ const formattedData = computed(() => [
     hint: '海蓝程度 × (1 − 云量)',
   },
   { label: '云层覆盖率', value: props.result.cloud_coverage !== null ? `${(props.result.cloud_coverage * 100).toFixed(4)}%` : 'N/A' },
+  {
+    label: '能见度',
+    value: props.result.visibility_km !== null
+      ? `${props.result.visibility_km.toFixed(2)} km${props.result.visibility_level ? `（${props.result.visibility_level}）` : ''}`
+      : 'N/A（旧记录或无法估算）',
+    hint: '云层遮蔽记 0；晴好天气按大气浑浊度反演',
+  },
+  {
+    label: '大气浑浊度',
+    value: props.result.haze_score !== null ? props.result.haze_score.toFixed(4) : 'N/A',
+    hint: '0 = 极通透，1 = 浓雾',
+  },
 ])
 
 // 历史数据可能缺少后新增的调试图（如 01_input_annotated），加载失败时以占位符代替

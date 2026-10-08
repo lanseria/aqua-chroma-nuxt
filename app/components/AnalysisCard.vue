@@ -25,12 +25,29 @@ function getCloudColor(percentage: number) {
   return `hsl(0, 0%, ${lightness}%)`
 }
 
+// 能见度上限 35km（与后端 config.VISIBILITY_MAX_KM 一致），进度条按 km/35km 比例填充
+const VISIBILITY_MAX_KM = 35
+
+function getVisibilityColor(km: number) {
+  if (km <= 0.5)
+    return '#4b5563' // 云层遮蔽 (灰)
+  if (km < 4)
+    return '#dc2626' // 浓雾 (红)
+  if (km < 10)
+    return '#d97706' // 轻度霾/雾 (琥珀)
+  if (km < 20)
+    return '#0ea5e9' // 中等 (天蓝)
+  return '#2563eb' // 良好 (蓝)
+}
+
 const seaBluenessPercentage = computed(() => {
   // 优先综合海蓝指数（新旧口径同义，均含云量折减）；缺失时退回 sea_blueness（仅 v1 有此情况）
   const v = props.item.blueness_index ?? props.item.sea_blueness
   return (v ?? 0) * 100
 })
 const cloudCoveragePercentage = computed(() => (props.item.cloud_coverage ?? 0) * 100)
+const visibilityPercentage = computed(() =>
+  props.item.visibility_km == null ? 0 : Math.min(100, (props.item.visibility_km / VISIBILITY_MAX_KM) * 100))
 
 // 云量过高的记录在卡片上打上标记，提示水色数值可信度低
 const isCloudy = computed(() => props.item.status === 'cloudy')
@@ -113,6 +130,14 @@ function openPreview(index: number) {
         label="云层覆盖率"
         :percentage="cloudCoveragePercentage"
         :color="getCloudColor(cloudCoveragePercentage)"
+      />
+      <!-- 能见度：单位是 km 而非百分比，用数值替换右侧百分比文案；旧记录无该字段时不展示 -->
+      <ProgressBar
+        v-if="item.visibility_km != null"
+        :label="`能见度${item.visibility_level ? ` · ${item.visibility_level}` : ''}`"
+        :percentage="visibilityPercentage"
+        :color="getVisibilityColor(item.visibility_km)"
+        :display-value="`${item.visibility_km.toFixed(1)} km`"
       />
     </div>
 
