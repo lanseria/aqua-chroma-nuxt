@@ -1,7 +1,7 @@
-FROM m.daocloud.io/docker.io/node:24-alpine AS build-stage
+FROM node:26-alpine AS build-stage
 
 WORKDIR /app
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
@@ -11,7 +11,7 @@ COPY . .
 RUN pnpm build
 
 # SSR
-FROM m.daocloud.io/docker.io/node:24-alpine AS production-stage
+FROM node:26-alpine AS production-stage
 
 WORKDIR /app
 
