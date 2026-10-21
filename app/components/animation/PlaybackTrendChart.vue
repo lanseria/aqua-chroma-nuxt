@@ -6,6 +6,8 @@ import { format, fromUnixTime } from 'date-fns'
 const props = defineProps<{
   frames: AnalysisResult[]
   currentIndex: number
+  /** 帧序列切换标识（如聚焦日期）：变化时把趋势图缩放归位到全量，避免残留旧缩放窗口 */
+  zoomResetKey?: string | null
 }>()
 
 const emits = defineEmits<{
@@ -13,6 +15,16 @@ const emits = defineEmits<{
   (e: 'preview', index: number): void
   (e: 'preview-end'): void
 }>()
+
+// 暴露的 vue-echarts 实例：用于在数据范围切换时重置 dataZoom 窗口
+const chartRef = ref<any>(null)
+
+function resetZoom() {
+  chartRef.value?.chart?.dispatchAction({ type: 'dataZoom', start: 0, end: 100 })
+}
+
+// 切换时间区间或聚焦日期会改变帧序列：把用户之前的手动缩放归位，保证当前帧序列完整可见
+watch([() => props.frames.length, () => props.zoomResetKey], () => resetZoom())
 
 // 悬停预览：轴指针移动时取 x 轴的 value（category 轴上即帧索引）上报给父级
 function handleAxisPointerUpdate(params: any) {
@@ -200,6 +212,6 @@ function handleChartClick(params: any) {
     class="p-3 border border-gray-200 rounded-lg bg-white w-full shadow-sm dark:border-gray-700 dark:bg-gray-800"
     @mouseleave="emits('preview-end')"
   >
-    <VChartFull :option="chartOption" autoresize @update-axis-pointer="handleAxisPointerUpdate" @click="handleChartClick" />
+    <VChartFull ref="chartRef" :option="chartOption" autoresize @update-axis-pointer="handleAxisPointerUpdate" @click="handleChartClick" />
   </div>
 </template>

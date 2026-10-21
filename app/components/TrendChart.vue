@@ -5,6 +5,8 @@ import { format, fromUnixTime } from 'date-fns'
 
 const props = defineProps<{
   results: AnalysisResult[]
+  /** 聚焦日期（yyyy-MM-dd，浏览器本地时区）：仅绘制该自然日 00:00–24:00 的数据；null / 未传 = 全量 */
+  focusDate?: string | null
 }>()
 
 const emits = defineEmits<{
@@ -34,6 +36,14 @@ const chartData = computed(() =>
     .sort((a, b) => a.timestamp - b.timestamp),
 )
 
+// 日期查找：聚焦某个自然日时，只把该日 00:00–24:00 的点交给图表渲染，
+// 视觉上等同于把坐标范围直接缩到该日 24 小时；清除聚焦后恢复全量数据
+const visibleData = computed(() => {
+  if (!props.focusDate)
+    return chartData.value
+  return chartData.value.filter(r => format(fromUnixTime(r.timestamp), 'yyyy-MM-dd') === props.focusDate)
+})
+
 // 海蓝程度取值：优先使用综合海蓝指数 blueness_index（v1/v2 同义，均含云量折减）；
 // 极老记录回填缺失时退回 sea_blueness（v1 口径本身即含云折减，语义一致）
 function bluenessPercent(r: AnalysisResult): number {
@@ -49,7 +59,7 @@ const dateMarkLines = computed(() => {
   const lines: any[] = []
   let lastDate = ''
 
-  chartData.value.forEach((item, index) => {
+  visibleData.value.forEach((item, index) => {
     const currentDate = format(fromUnixTime(item.timestamp), 'yyyy-MM-dd')
 
     // 只要不是第一个点，且日期变化了，就加线
@@ -79,8 +89,12 @@ const dateMarkLines = computed(() => {
 const chartOption = computed<EChartsOption>(() => {
   return {
     title: {
-      text: '海蓝程度趋势分析 (点击数据点查看详情)',
-      subtext: '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)；能见度在右侧 km 轴，云层遮蔽记 0',
+      text: props.focusDate
+        ? `海蓝程度趋势分析 · ${props.focusDate}`
+        : '海蓝程度趋势分析 (点击数据点查看详情)',
+      subtext: props.focusDate
+        ? `已聚焦 ${props.focusDate} 的 24 小时范围，共 ${visibleData.value.length} 个有效数据点（夜间/无指标记录不绘制）；点击数据点查看详情`
+        : '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)；能见度在右侧 km 轴，云层遮蔽记 0',
       left: 'center',
       textStyle: {
         fontSize: 16, // 调整字体大小以适应更长的标题
@@ -131,8 +145,8 @@ const chartOption = computed<EChartsOption>(() => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      // --- 修改点：使用提取的 chartData ---
-      data: chartData.value.map(r => format(fromUnixTime(r.timestamp), 'MM-dd HH:mm')),
+      // --- 修改点：使用提取的 visibleData（聚焦日期时仅该日 24 小时） ---
+      data: visibleData.value.map(r => format(fromUnixTime(r.timestamp), 'MM-dd HH:mm')),
       axisLabel: {
         color: isDark.value ? '#9ca3af' : '#6b7280',
       },
@@ -174,7 +188,7 @@ const chartOption = computed<EChartsOption>(() => {
         type: 'line',
         smooth: true,
         sampling: 'lttb', // --- 新增：开启降采样优化 ---
-        data: chartData.value.map(r => bluenessPercent(r)),
+        data: visibleData.value.map(r => bluenessPercent(r)),
         itemStyle: { color: '#3b82f6' },
         cursor: 'pointer',
         areaStyle: {
@@ -222,7 +236,7 @@ const chartOption = computed<EChartsOption>(() => {
         smooth: true,
         sampling: 'lttb', // --- 新增：开启降采样优化 ---
         showSymbol: false, // 不显示数据点，减少视觉干扰
-        data: chartData.value.map(r => (r.cloud_coverage ?? 0) * 100),
+        data: visibleData.value.map(r => (r.cloud_coverage ?? 0) * 100),
         itemStyle: {
           width: 1.5,
           type: 'dashed', // 使用虚线表示辅助数据
@@ -240,7 +254,7 @@ const chartOption = computed<EChartsOption>(() => {
         showSymbol: false,
         // 旧记录 visibility_km 为 null：断开连线，只绘制有值的区段
         connectNulls: false,
-        data: chartData.value.map(r => r.visibility_km),
+        data: visibleData.value.map(r => r.visibility_km),
         itemStyle: { color: '#14b8a6' },
         lineStyle: {
           width: 1.5,
@@ -254,7 +268,7 @@ const chartOption = computed<EChartsOption>(() => {
 
 function handleChartClick(params: any) {
   if (params.dataIndex !== undefined) {
-    const clickedItem = chartData.value[params.dataIndex]
+    const clickedItem = visibleData.value[params.dataIndex]
     if (clickedItem) {
       // 发出只包含时间戳的事件
       emits('timestamp-selected', clickedItem.timestamp)

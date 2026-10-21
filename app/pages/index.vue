@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { AnalysisResult } from '~/stores/analysis'
-import { format, fromUnixTime, parseISO, startOfDay } from 'date-fns'
+import { format, fromUnixTime, parseISO, startOfDay, subDays } from 'date-fns'
 import { saveAs } from 'file-saver'
 import JSZip from 'jszip'
 import { storeToRefs } from 'pinia'
 import DebugResultViewer from '~/components/DebugResultViewer.vue'
 import { timeRangeOptions } from '~/constants'
 import { useAnalysisStore } from '~/stores/analysis'
+import { dayWindow, todayString } from '~/utils/date-window'
 
 const toast = useToast()
 // URL
@@ -24,6 +25,10 @@ const LOAD_MORE_COUNT = 8
 const selectedRange = ref(7)
 const isFetching = ref(false)
 
+// --- 日期查找：输入日期后把趋势图范围缩小到该自然日的 24 小时 ---
+const focusDateInput = ref('')
+const focusDate = ref<string | null>(null)
+
 const displayedCount = ref(INITIAL_LOAD_COUNT)
 const isLoadingMore = ref(false)
 const allDataLoaded = computed(() => displayedCount.value >= results.value.length)
@@ -35,6 +40,9 @@ async function handleRangeChange(val: string | number | boolean) {
   const days = Number(val)
   displayedCount.value = INITIAL_LOAD_COUNT
   isFetching.value = true
+  // 切换时间范围会重新拉取数据，先退出日期聚焦，避免对新数据套用旧日期
+  focusDate.value = null
+  focusDateInput.value = ''
   await analysisStore.fetchResults(days)
   isFetching.value = false
 }
@@ -56,6 +64,87 @@ function handleScroll() {
   if (isAtBottom)
     loadMore()
 }
+
+// 聚焦日内的统计摘要：记录数、图表有效点、海蓝/云量/能见度均值
+const focusStats = computed(() => {
+  if (!focusDate.value)
+    return null
+
+  const { start, end } = dayWindow(focusDate.value)
+  const items = results.value.filter(r => r.timestamp >= start && r.timestamp < end)
+  const chartItems = items.filter(r => r.sea_blueness !== null || r.visibility_km !== null)
+
+  const blueness = chartItems
+    .map(r => r.blueness_index ?? r.sea_blueness)
+    .filter((v): v is number => v !== null && v !== undefined)
+    .map(v => v * 100)
+  const cloud = chartItems
+    .map(r => r.cloud_coverage)
+    .filter((v): v is number => v !== null)
+    .map(v => v * 100)
+  // 云层遮蔽记录的能见度按口径记 0（占位值），计算均值时排除，避免明显低估
+  const visibility = chartItems
+    .filter(r => r.visibility_level !== '云层遮蔽')
+    .map(r => r.visibility_km)
+    .filter((v): v is number => v !== null)
+
+  const avg = (list: number[]) => list.length ? list.reduce((sum, v) => sum + v, 0) / list.length : null
+
+  return {
+    records: items.length,
+    points: chartItems.length,
+    avgBlueness: avg(blueness),
+    maxBlueness: blueness.length ? Math.max(...blueness) : null,
+    avgCloud: avg(cloud),
+    avgVisibility: avg(visibility),
+  }
+})
+
+function handleFocusDate() {
+  const date = focusDateInput.value
+  if (!date) {
+    toast.warning('请先选择要查找的日期')
+    return
+  }
+  if (date > todayString()) {
+    toast.warning('不能查找未来的日期')
+    return
+  }
+
+  const { start, end } = dayWindow(date)
+  const items = results.value.filter(r => r.timestamp >= start && r.timestamp < end)
+  const hasChartData = items.some(r => r.sea_blueness !== null || r.visibility_km !== null)
+
+  if (!hasChartData) {
+    if (items.length > 0) {
+      toast.info(`${date} 只有夜间/无有效指标记录，无法绘制趋势曲线`)
+    }
+    else {
+      // 服务端按「当前时间 − N 天」滚动截取，逐日无数据不代表超出范围
+      const rangeStart = format(subDays(new Date(), Number(selectedRange.value)), 'yyyy-MM-dd')
+      if (date < rangeStart) {
+        toast.warning(`${date} 超出当前已加载的 ${selectedRange.value} 天范围，请先切换更大的时间范围`)
+      }
+      else {
+        toast.info(`${date} 暂无分析数据`)
+      }
+    }
+    return
+  }
+
+  focusDate.value = date
+}
+
+function clearFocusDate() {
+  focusDate.value = null
+  focusDateInput.value = ''
+}
+
+// 删除记录等操作可能让聚焦日不再有数据，此时自动退出聚焦，避免图表空白
+watch(focusStats, (stats) => {
+  if (focusDate.value && (!stats || stats.points === 0))
+    focusDate.value = null
+})
 
 // 调试工具的状态
 const debugTimestampInput = ref('')
@@ -83,8 +172,6 @@ function handleDelete(item: AnalysisResult) {
 const downloadStartDate = ref('')
 const downloadEndDate = ref('')
 const isDownloading = ref(false)
-
-const today = format(new Date(), 'yyyy-MM-dd')
 
 // 计算属性：将日期字符串转换为毫秒时间戳数组，兼容原有逻辑
 const downloadDateRange = computed(() => {
@@ -217,13 +304,72 @@ onUnmounted(() => {
 <template>
   <div class="p-4 sm:p-6">
     <div class="mb-6 space-y-4">
-      <!-- 顶部控制栏：时间筛选 -->
+      <!-- 顶部控制栏：日期查找 + 时间筛选 -->
       <div class="flex flex-wrap gap-4 items-center justify-between">
         <h2 class="text-xl text-gray-800 font-bold dark:text-gray-100">
           趋势概览
         </h2>
-        <ButtonGroup v-model="selectedRange" :options="timeRangeOptions" @change="handleRangeChange" />
+        <div class="flex flex-wrap gap-3 items-center">
+          <div class="flex flex-wrap gap-2 items-center">
+            <label
+              for="trend-focus-date"
+              class="text-sm text-gray-600 flex gap-1 items-center dark:text-gray-300"
+            >
+              <span class="i-carbon-calendar h-4 w-4" />
+              日期查找
+            </label>
+            <input
+              id="trend-focus-date"
+              v-model="focusDateInput"
+              type="date"
+              :max="todayString()"
+              :disabled="isFetching"
+              title="输入日期后点击定位，趋势图将聚焦到该日 24 小时"
+              class="text-sm px-3 py-1.5 border border-gray-300 rounded bg-white dark:text-gray-200 focus:outline-none dark:border-gray-600 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-teal-500"
+              @keydown.enter="handleFocusDate"
+            >
+            <button
+              class="text-sm text-white px-3 py-1.5 rounded bg-teal-600 flex gap-1.5 transition-colors items-center hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="isFetching"
+              @click="handleFocusDate"
+            >
+              <div class="i-carbon-search h-4 w-4" />
+              定位
+            </button>
+            <button
+              v-if="focusDate"
+              class="text-sm text-gray-600 px-3 py-1.5 border border-gray-300 rounded bg-white flex gap-1.5 transition-colors items-center dark:text-gray-300 dark:border-gray-600 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+              @click="clearFocusDate"
+            >
+              <div class="i-carbon-close h-4 w-4" />
+              恢复全览
+            </button>
+          </div>
+          <ButtonGroup v-model="selectedRange" :options="timeRangeOptions" @change="handleRangeChange" />
+        </div>
       </div>
+
+      <!-- 聚焦日 24 小时的数据摘要 -->
+      <div
+        v-if="focusDate && focusStats"
+        class="text-sm text-gray-600 px-3 py-2 border border-teal-200 rounded-lg bg-teal-50/70 flex flex-wrap gap-x-4 gap-y-1 items-center dark:text-gray-300 dark:border-teal-800 dark:bg-teal-900/20"
+      >
+        <div class="text-teal-700 font-medium flex gap-1 items-center dark:text-teal-400">
+          <span class="i-carbon-search-locate h-4 w-4" />
+          已聚焦 {{ focusDate }} · 24 小时范围
+        </div>
+        <span>有效数据点 <b class="font-mono">{{ focusStats.points }}</b></span>
+        <span v-if="focusStats.records > focusStats.points">另有 <b class="font-mono">{{ focusStats.records - focusStats.points }}</b> 条无指标记录</span>
+        <span v-if="focusStats.avgBlueness !== null">海蓝均值 <b class="font-mono">{{ focusStats.avgBlueness.toFixed(1) }}%</b></span>
+        <span v-if="focusStats.maxBlueness !== null">峰值 <b class="font-mono">{{ focusStats.maxBlueness.toFixed(1) }}%</b></span>
+        <span v-if="focusStats.avgCloud !== null">云量均值 <b class="font-mono">{{ focusStats.avgCloud.toFixed(1) }}%</b></span>
+        <span v-if="focusStats.avgVisibility !== null">能见度均值（不含遮蔽） <b class="font-mono">{{ focusStats.avgVisibility.toFixed(1) }} km</b></span>
+      </div>
+
+      <!-- 读屏播报：常驻 live region，聚焦状态变化时播报（region 需先存在，故不使用 v-if） -->
+      <p class="sr-only" role="status">
+        {{ focusDate ? `已聚焦 ${focusDate}，${focusStats?.points ?? 0} 个有效数据点` : '' }}
+      </p>
 
       <div class="relative">
         <!-- 加载遮罩 -->
@@ -233,7 +379,7 @@ onUnmounted(() => {
             已加载 {{ loadingProgress }} 条数据...
           </div>
         </div>
-        <TrendChart :results="results" @timestamp-selected="handleTimestampSelected" />
+        <TrendChart :results="results" :focus-date="focusDate" @timestamp-selected="handleTimestampSelected" />
       </div>
 
       <div v-if="!isNetlify" ref="debugToolRef" class="p-3 border border-gray-200 rounded-lg bg-white flex flex-wrap gap-4 shadow-sm items-center dark:border-gray-700 dark:bg-gray-800">
@@ -262,7 +408,7 @@ onUnmounted(() => {
           <input
             type="date"
             :value="downloadStartDate"
-            :max="today"
+            :max="todayString()"
             class="text-sm px-3 py-1.5 border border-gray-300 rounded bg-white dark:text-gray-200 focus:outline-none dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-teal-500"
             @input="downloadStartDate = ($event.target as HTMLInputElement).value"
           >
@@ -270,7 +416,7 @@ onUnmounted(() => {
           <input
             type="date"
             :value="downloadEndDate"
-            :max="today"
+            :max="todayString()"
             class="text-sm px-3 py-1.5 border border-gray-300 rounded bg-white dark:text-gray-200 focus:outline-none dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-teal-500"
             @input="downloadEndDate = ($event.target as HTMLInputElement).value"
           >
