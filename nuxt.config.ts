@@ -59,6 +59,7 @@ export default defineNuxtConfig({
     renderer: ['canvas'],
     charts: ['LineChart'],
     components: [
+      'AxisPointerComponent',
       'DataZoomComponent',
       'GridComponent',
       'LegendComponent',

@@ -52,17 +52,24 @@ interface AnalysisResult {
 
 ### Page Structure
 
-- `app/pages/index.vue` — the only meaningful page; contains the trend chart, debug tool, batch download, and infinite-scroll card grid.
+- `app/pages/index.vue` — realtime overview dashboard; 区间指标摘要、重设计后的趋势图，以及悬停曲线联动的三视图 (`TimelinePreview`) 预览。
+- `app/pages/history.vue` — 历史记录页；包含无限滚动卡片网格、单点调试、批量下载与详情弹窗。
+- `app/pages/share.vue` — 图文工坊；选择观测时刻生成 3:4 / 9:16 社交海报（封面 / 三视图 / 数据），支持编辑文案、单张下载和 ZIP 打包。
+- `app/pages/animation.vue` — 动画回放页。
 - `app/pages/[...all].vue` — catch-all route.
-- `app/layouts/default.vue` — includes `ThemeToggle` and `ProgressBar`.
+- `app/layouts/default.vue` — includes navigation (`/share`, `/history`, `/animation`), `ThemeToggle` and `ProgressBar`.
 
 ### Component Roles
 
-- `TrendChart` — ECharts line chart with zoom, click-to-select timestamp; 双 Y 轴（左 %，右 km），绘制海蓝程度、云层覆盖率、能见度三条曲线。
+- `TrendChart` — ECharts line chart with zoom, hover-to-preview and click-to-select timestamp; 双 Y 轴（左 %，右 km），绘制海蓝程度、云层覆盖率、能见度三条曲线。
+- `TimelinePreview` — index 页的 3 视图联动预览；展示悬停时刻的原图 / 高清化 / 分类结果及关键指标，可打开详情或跳转图文工坊。
+- `MetricTile` — index 页的区间指标摘要卡，带图标、进度条与辅助说明。
 - `AnalysisCard` — single result card with before/after images; 能见度进度条按 km/35km 比例渲染（`VISIBILITY_MAX_KM`），`visibility_km` 为 null 的旧记录不展示该行。
 - `DebugResultViewer` — modal content for debug analysis results; 含能见度/大气浑浊度字段与 `05_dark_channel.png` 调试图。
 - `ThemeToggle` — dark/light switch synced with Arco Design.
 - `ProgressBar` — top-of-page loading progress indicator; 支持 `displayValue` 覆盖右侧百分比文案（能见度显示 km）。
+- `app/utils/analysis-metrics.ts` — 趋势图、区间摘要与分享海报共享的取值、海蓝分级、过滤与统计口径。
+- `app/utils/share-poster.ts` — Canvas 海报渲染（封面 / 三视图 / 数据）与社交文案生成。
 
 ### Database Access
 

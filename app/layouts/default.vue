@@ -11,13 +11,29 @@ import { appName } from '~/constants'
           <!-- 左侧：Logo 和应用名称 -->
           <div class="flex items-center">
             <NuxtLink to="/" class="text-xl font-bold flex gap-2 transition-colors items-center hover:text-teal-600">
-              <div class="i-carbon-wave text-2xl" />
+              <div class="i-carbon-wave-direction text-2xl" />
               <span>{{ appName }}</span>
             </NuxtLink>
           </div>
 
           <!-- 右侧：功能按钮 -->
           <div class="flex gap-1 h-full items-center">
+            <!-- 图文工坊入口 -->
+            <NuxtLink
+              to="/share"
+              class="text-sm text-gray-600 px-3 py-1.5 rounded-lg flex gap-1.5 transition-colors items-center dark:text-gray-300 hover:text-teal-600 hover:bg-gray-100 dark:hover:text-teal-400 dark:hover:bg-gray-800"
+            >
+              <div class="i-carbon-share h-4 w-4" />
+              <span class="hidden sm:inline">图文工坊</span>
+            </NuxtLink>
+            <!-- 历史记录入口 -->
+            <NuxtLink
+              to="/history"
+              class="text-sm text-gray-600 px-3 py-1.5 rounded-lg flex gap-1.5 transition-colors items-center dark:text-gray-300 hover:text-teal-600 hover:bg-gray-100 dark:hover:text-teal-400 dark:hover:bg-gray-800"
+            >
+              <div class="i-carbon-history h-4 w-4" />
+              <span class="hidden sm:inline">历史记录</span>
+            </NuxtLink>
             <!-- 动画回放入口 -->
             <NuxtLink
               to="/animation"

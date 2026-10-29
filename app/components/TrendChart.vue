@@ -2,6 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime } from 'date-fns'
+import { BLUENESS_LEVELS, bluenessPercent, chartResults, getBluenessLevel, VISIBILITY_MAX_KM } from '~/utils/analysis-metrics'
 
 const props = defineProps<{
   results: AnalysisResult[]
@@ -11,48 +12,29 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'timestamp-selected', timestamp: number): void
+  (e: 'preview', timestamp: number): void
 }>()
-
-// 定义 Y 轴标记线及其美化后的描述文字
-const markLineLevels = [
-  { yAxis: 80, name: '湛蓝如镜', color: '#10b981' }, // 极佳
-  { yAxis: 60, name: '清澈蔚蓝', color: '#3b82f6' }, // 不错
-  { yAxis: 40, name: '碧波荡漾', color: '#f59e0b' }, // 一般
-  { yAxis: 20, name: '略显浑浊', color: '#ef4444' }, // 较差
-]
 
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 
 provide(THEME_KEY, computed(() => isDark.value ? 'dark' : 'default'))
 
-// --- 将 chartData 提取为独立的 computed 属性，方便在点击事件中复用 ---
+const chartRef = ref<any>(null)
+
 // 状态口径：completed 与 cloudy（云量偏高）都有指标值，均参与绘制；
 // night / error / download_failed 无指标，按“有数值”过滤即可排除。
-// 能见度参与绘制要求 visibility_km 非 null（旧记录该列为 NULL，不绘制该点）
-const chartData = computed(() =>
-  props.results
-    .filter(r => r.sea_blueness !== null || r.visibility_km !== null)
-    .sort((a, b) => a.timestamp - b.timestamp),
-)
+const visibleData = computed(() => chartResults(props.results, props.focusDate))
 
-// 日期查找：聚焦某个自然日时，只把该日 00:00–24:00 的点交给图表渲染，
-// 视觉上等同于把坐标范围直接缩到该日 24 小时；清除聚焦后恢复全量数据
-const visibleData = computed(() => {
-  if (!props.focusDate)
-    return chartData.value
-  return chartData.value.filter(r => format(fromUnixTime(r.timestamp), 'yyyy-MM-dd') === props.focusDate)
+// 切换时间范围 / 聚焦日期后把缩放归位，避免残留上一个数据集的窗口
+watch([
+  () => props.focusDate,
+  () => props.results.length,
+], () => {
+  nextTick(() => chartRef.value?.chart?.dispatchAction({ type: 'dataZoom', start: 0, end: 100 }))
 })
 
-// 海蓝程度取值：优先使用综合海蓝指数 blueness_index（v1/v2 同义，均含云量折减）；
-// 极老记录回填缺失时退回 sea_blueness（v1 口径本身即含云折减，语义一致）
-function bluenessPercent(r: AnalysisResult): number {
-  const v = r.blueness_index ?? r.sea_blueness
-  return (v ?? 0) * 100
-}
-
-// 能见度上限 35km（与后端 config.VISIBILITY_MAX_KM 一致），用于右侧 km 轴刻度
-const VISIBILITY_MAX_KM = 35
+// 海蓝分级虚线：颜色与图例、分享海报保持一致，具体描述在图表上方图例中展示
 
 // --- 计算日期分隔线 ---
 const dateMarkLines = computed(() => {
@@ -65,17 +47,16 @@ const dateMarkLines = computed(() => {
     // 只要不是第一个点，且日期变化了，就加线
     if (index > 0 && currentDate !== lastDate) {
       lines.push({
-        xAxis: index, // 在 Category 轴上，可以用索引定位
+        xAxis: index,
         label: {
           formatter: format(fromUnixTime(item.timestamp), 'MM-dd'),
-          position: 'end', // 显示在顶部
-          color: isDark.value ? '#9ca3af' : '#9ca3af', // 统一使用灰色
-          fontSize: 11,
-          padding: [0, 0, 2, 0], // 微调位置
+          position: 'end',
+          color: isDark.value ? '#64748b' : '#94a3b8',
+          fontSize: 10,
+          padding: [0, 0, 4, 0],
         },
         lineStyle: {
-          // 亮色模式下浅灰，暗色模式下深灰
-          color: isDark.value ? '#374151' : '#e5e7eb',
+          color: isDark.value ? '#1f2937' : '#e2e8f0',
           type: 'solid',
           width: 1,
         },
@@ -86,199 +67,367 @@ const dateMarkLines = computed(() => {
   return lines
 })
 
-const chartOption = computed<EChartsOption>(() => {
-  return {
-    title: {
-      text: props.focusDate
-        ? `海蓝程度趋势分析 · ${props.focusDate}`
-        : '海蓝程度趋势分析 (点击数据点查看详情)',
-      subtext: props.focusDate
-        ? `已聚焦 ${props.focusDate} 的 24 小时范围，共 ${visibleData.value.length} 个有效数据点（夜间/无指标记录不绘制）；点击数据点查看详情`
-        : '海蓝程度 = 可见水体蓝色占比 × (1 − 云量)；能见度在右侧 km 轴，云层遮蔽记 0',
-      left: 'center',
-      textStyle: {
-        fontSize: 16, // 调整字体大小以适应更长的标题
-        color: isDark.value ? '#e5e7eb' : '#374151',
+function seriesValue(value: number | null | undefined, fallback = '--') {
+  return value == null
+    ? fallback
+    : value.toFixed(1)
+}
+
+function tooltipFormatter(params: any) {
+  const list = Array.isArray(params)
+    ? params
+    : [params]
+  const index = list[0]?.dataIndex
+  const record = visibleData.value[index]
+  const title = record
+    ? format(fromUnixTime(record.timestamp), 'yyyy-MM-dd HH:mm')
+    : list[0]?.axisValueLabel
+
+  const rows = list.map((item: any) => {
+    const isVisibility = item.seriesName === '能见度'
+    const hasValue = item.value !== null && item.value !== undefined
+    const value = hasValue
+      ? `${seriesValue(Number(item.value))}${isVisibility ? ' km' : ' %'}`
+      : '--'
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;line-height:1.9;">
+        <span style="display:flex;align-items:center;">${item.marker}<span style="margin-left:4px;">${item.seriesName}</span></span>
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600;">${value}</span>
+      </div>
+    `
+  }).join('')
+
+  const level = record
+    ? getBluenessLevel(bluenessPercent(record))
+    : null
+  const levelNote = level
+    ? `<div style="margin-top:4px;font-size:10px;color:${isDark.value ? '#94a3b8' : '#64748b'};">海蓝分级：<span style="color:${level.color};font-weight:600;">${level.name}</span></div>`
+    : ''
+
+  const cloudyNote = record?.status === 'cloudy'
+    ? '<div style="margin-top:6px;font-size:10px;color:#d97706;">云层偏厚，水色指标参考性下降</div>'
+    : ''
+
+  return `
+    <div style="min-width:180px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:600;color:${isDark.value ? '#e2e8f0' : '#334155'};">${title}</span>
+        ${record
+          ? `<span style="font-size:10px;color:${isDark.value ? '#94a3b8' : '#64748b'};">${record.visibility_level ?? ''}</span>`
+          : ''}
+      </div>
+      ${rows}
+      ${levelNote}
+      ${cloudyNote}
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid ${isDark.value ? '#334155' : '#e2e8f0'};font-size:10px;color:${isDark.value ? '#64748b' : '#94a3b8'};">点击数据点查看完整分析详情</div>
+    </div>
+  `
+}
+
+const chartOption = computed<EChartsOption>(() => ({
+  animationDuration: 600,
+  animationEasing: 'cubicOut',
+  tooltip: {
+    trigger: 'axis',
+    confine: true,
+    backgroundColor: isDark.value ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+    borderColor: isDark.value ? '#334155' : '#e2e8f0',
+    borderWidth: 1,
+    padding: [10, 12],
+    textStyle: {
+      color: isDark.value ? '#e2e8f0' : '#334155',
+    },
+    extraCssText: 'border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.16);',
+    axisPointer: {
+      type: 'line',
+      snap: true,
+      lineStyle: {
+        color: isDark.value ? 'rgba(45, 212, 191, 0.7)' : 'rgba(13, 148, 136, 0.45)',
+        width: 1,
+        type: 'dashed',
       },
-      subtextStyle: {
-        fontSize: 11,
-        color: isDark.value ? '#9ca3af' : '#6b7280',
+      label: { show: false },
+    },
+    formatter: tooltipFormatter,
+  },
+  legend: {
+    data: ['海蓝程度', '云层覆盖率', '能见度'],
+    top: 2,
+    right: 4,
+    icon: 'roundRect',
+    itemWidth: 12,
+    itemHeight: 3,
+    itemGap: 14,
+    textStyle: {
+      color: isDark.value ? '#94a3b8' : '#64748b',
+      fontSize: 11,
+    },
+    inactiveColor: isDark.value ? '#475569' : '#cbd5e1',
+  },
+  grid: {
+    left: 4,
+    right: 8,
+    top: 38,
+    bottom: 58,
+    containLabel: true,
+  },
+  xAxis: {
+    type: 'category',
+    boundaryGap: false,
+    data: visibleData.value.map(r => format(fromUnixTime(r.timestamp), 'MM-dd HH:mm')),
+    axisLine: {
+      lineStyle: {
+        color: isDark.value ? '#334155' : '#e2e8f0',
       },
     },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: isDark.value ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-      borderColor: isDark.value ? '#4b5563' : '#e5e7eb',
-      textStyle: {
-        color: isDark.value ? '#e5e7eb' : '#374151',
-      },
-      formatter: (params: any) => {
-        let result = `<div class="mb-1 font-medium text-xs">${params[0].axisValueLabel}</div>`
-        params.forEach((item: any) => {
-          const isKm = item.seriesName === '能见度'
-          const val = typeof item.value === 'number' ? item.value.toFixed(1) : '--'
-          const unit = isKm ? 'km' : '%'
-          result += `
-            <div class="flex items-center justify-between gap-3 text-xs">
-              <span class="flex items-center gap-1">${item.marker} ${item.seriesName}</span>
-              <span class="font-bold font-mono">${val}${unit}</span>
-            </div>
-          `
-        })
-        return result
-      },
+    axisTick: { show: false },
+    axisLabel: {
+      color: isDark.value ? '#64748b' : '#94a3b8',
+      fontSize: 10,
+      hideOverlap: true,
+      margin: 12,
     },
-    legend: {
-      data: ['海蓝程度', '云层覆盖率', '能见度'],
-      bottom: 0,
-      textStyle: {
-        color: isDark.value ? '#9ca3af' : '#4b5563',
+    axisPointer: {
+      show: true,
+      type: 'line',
+      snap: true,
+      lineStyle: {
+        color: isDark.value ? 'rgba(45, 212, 191, 0.55)' : 'rgba(13, 148, 136, 0.35)',
+        width: 1,
+        type: 'dashed',
       },
+      label: { show: false },
     },
-    grid: {
-      left: '5%',
-      right: '5%',
-      bottom: '12%', // 稍微增加底部空间给 Legend
-      top: '15%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      // --- 修改点：使用提取的 visibleData（聚焦日期时仅该日 24 小时） ---
-      data: visibleData.value.map(r => format(fromUnixTime(r.timestamp), 'MM-dd HH:mm')),
+  },
+  yAxis: [
+    {
+      type: 'value',
+      min: 0,
+      max: 100,
+      interval: 20,
+      axisLine: { show: false },
+      axisTick: { show: false },
       axisLabel: {
-        color: isDark.value ? '#9ca3af' : '#6b7280',
+        formatter: '{value}%',
+        color: isDark.value ? '#64748b' : '#94a3b8',
+        fontSize: 10,
+      },
+      splitLine: {
+        lineStyle: {
+          color: isDark.value ? 'rgba(51, 65, 85, 0.55)' : '#f1f5f9',
+          type: 'dashed',
+        },
       },
     },
-    yAxis: [
-      {
-        type: 'value',
-        min: 0,
-        max: 100,
-        axisLabel: {
-          formatter: '{value} %',
-          color: isDark.value ? '#9ca3af' : '#6b7280',
-        },
-        splitLine: {
-          lineStyle: {
-            color: isDark.value ? '#374151' : '#e5e7eb',
-          },
-        },
+    {
+      // 能见度（公里）独立右轴，上限 35km 与后端 config.VISIBILITY_MAX_KM 一致
+      type: 'value',
+      min: 0,
+      max: VISIBILITY_MAX_KM,
+      interval: 7,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        formatter: '{value} km',
+        color: isDark.value ? '#64748b' : '#94a3b8',
+        fontSize: 10,
       },
-      {
-        type: 'value',
-        name: '能见度',
-        min: 0,
-        max: VISIBILITY_MAX_KM,
-        axisLabel: {
-          formatter: '{value} km',
-          color: isDark.value ? '#9ca3af' : '#6b7280',
-        },
-        splitLine: { show: false }, // 复用左轴网格线，避免双轴线条交叉
+      splitLine: { show: false },
+    },
+  ],
+  dataZoom: [
+    {
+      type: 'inside',
+      start: 0,
+      end: 100,
+      moveOnMouseMove: true,
+      moveOnMouseWheel: false,
+      zoomOnMouseWheel: true,
+    },
+    {
+      type: 'slider',
+      start: 0,
+      end: 100,
+      height: 16,
+      bottom: 6,
+      borderColor: 'transparent',
+      backgroundColor: isDark.value ? 'rgba(148, 163, 184, 0.08)' : 'rgba(148, 163, 184, 0.10)',
+      fillerColor: isDark.value ? 'rgba(20, 184, 166, 0.18)' : 'rgba(20, 184, 166, 0.12)',
+      handleStyle: {
+        color: '#14b8a6',
+        borderColor: '#14b8a6',
       },
-    ],
-    dataZoom: [
-      { type: 'inside', start: 0, end: 100 },
-      { start: 0, end: 100 },
-    ],
-    series: [
-      {
-        name: '海蓝程度',
-        type: 'line',
-        smooth: true,
-        sampling: 'lttb', // --- 新增：开启降采样优化 ---
-        data: visibleData.value.map(r => bluenessPercent(r)),
-        itemStyle: { color: '#3b82f6' },
-        cursor: 'pointer',
+      moveHandleStyle: {
+        color: '#14b8a6',
+        opacity: 0.35,
+      },
+      dataBackground: {
+        lineStyle: {
+          color: isDark.value ? '#334155' : '#cbd5e1',
+        },
         areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(59, 130, 246, 0.5)' },
-              { offset: 1, color: 'rgba(59, 130, 246, 0.1)' },
-            ],
-          },
+          color: isDark.value ? '#1e293b' : '#f1f5f9',
         },
-        // --- 新增：添加标记线 (合并水平阈值线和垂直日期分割线) ---
-        markLine: {
-          silent: true, // 标记线不响应鼠标事件
-          symbol: 'none', // 两端不显示任何符号
-          data: [
-            // 1. 水平阈值线
-            ...markLineLevels.map(item => ({
-              yAxis: item.yAxis,
-              label: {
-                position: 'end', // 标签显示在行的末端（右侧）
-                formatter: item.name, // 使用我们定义的美化名称
-                color: item.color, // 标签颜色与线条颜色一致
-                fontSize: 10,
-                distance: 10, // 标签与图表边缘的距离
-              },
-              lineStyle: {
-                type: 'dashed', // 设置为虚线
-                color: item.color, // 线条颜色
-                opacity: 0.6,
-              },
-            })),
-            // 2. 垂直日期分割线
-            ...dateMarkLines.value,
+      },
+      selectedDataBackground: {
+        lineStyle: { color: '#14b8a6' },
+        areaStyle: { color: 'rgba(20, 184, 166, 0.12)' },
+      },
+      textStyle: {
+        color: isDark.value ? '#64748b' : '#94a3b8',
+        fontSize: 9,
+      },
+      brushSelect: false,
+    },
+  ],
+  series: [
+    {
+      name: '海蓝程度',
+      type: 'line',
+      smooth: 0.25,
+      sampling: 'lttb',
+      showSymbol: false,
+      symbol: 'circle',
+      symbolSize: 7,
+      data: visibleData.value.map(bluenessPercent),
+      lineStyle: {
+        width: 2.5,
+        color: '#38bdf8',
+        shadowColor: 'rgba(56, 189, 248, 0.3)',
+        shadowBlur: 10,
+      },
+      itemStyle: {
+        color: '#38bdf8',
+        borderColor: isDark.value ? '#0f172a' : '#ffffff',
+        borderWidth: 2,
+      },
+      emphasis: {
+        focus: 'series',
+        scale: 1.4,
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(56, 189, 248, 0.34)' },
+            { offset: 0.6, color: 'rgba(56, 189, 248, 0.10)' },
+            { offset: 1, color: 'rgba(56, 189, 248, 0.01)' },
           ],
         },
       },
-      {
-        name: '云层覆盖率',
-        type: 'line',
-        smooth: true,
-        sampling: 'lttb', // --- 新增：开启降采样优化 ---
-        showSymbol: false, // 不显示数据点，减少视觉干扰
-        data: visibleData.value.map(r => (r.cloud_coverage ?? 0) * 100),
-        itemStyle: {
-          width: 1.5,
-          type: 'dashed', // 使用虚线表示辅助数据
-          opacity: 0.6, // 降低不透明度
-          color: '#9ca3af',
-        },
-        z: 1, // 渲染层级较低
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        data: [
+          ...BLUENESS_LEVELS.filter(level => level.threshold > 0).map(level => ({
+            yAxis: level.threshold,
+            label: { show: false },
+            lineStyle: {
+              type: 'dashed',
+              color: level.color,
+              opacity: 0.18,
+              width: 1,
+            },
+          })),
+          ...dateMarkLines.value,
+        ],
       },
-      {
-        name: '能见度',
-        type: 'line',
-        smooth: true,
-        sampling: 'lttb',
-        yAxisIndex: 1, // 绑定右侧 km 轴
-        showSymbol: false,
-        // 旧记录 visibility_km 为 null：断开连线，只绘制有值的区段
-        connectNulls: false,
-        data: visibleData.value.map(r => r.visibility_km),
-        itemStyle: { color: '#14b8a6' },
-        lineStyle: {
-          width: 1.5,
-          color: '#14b8a6',
-        },
-        z: 2,
+      z: 3,
+    },
+    {
+      name: '云层覆盖率',
+      type: 'line',
+      smooth: 0.25,
+      sampling: 'lttb',
+      showSymbol: false,
+      connectNulls: false,
+      data: visibleData.value.map(r => r.cloud_coverage == null
+        ? null
+        : r.cloud_coverage * 100),
+      itemStyle: { color: '#94a3b8' },
+      lineStyle: {
+        width: 1.5,
+        type: 'dashed',
+        color: '#94a3b8',
+        opacity: 0.85,
       },
-    ],
+      z: 1,
+    },
+    {
+      name: '能见度',
+      type: 'line',
+      smooth: 0.25,
+      sampling: 'lttb',
+      yAxisIndex: 1,
+      showSymbol: false,
+      // 旧记录 visibility_km 为 null：断开连线，只绘制有值的区段
+      connectNulls: false,
+      data: visibleData.value.map(r => r.visibility_km),
+      itemStyle: { color: '#14b8a6' },
+      lineStyle: {
+        width: 2,
+        color: '#14b8a6',
+        shadowColor: 'rgba(20, 184, 166, 0.3)',
+        shadowBlur: 8,
+      },
+      z: 2,
+    },
+  ],
+}))
+
+let lastPreviewTimestamp: number | null = null
+
+// 悬停预览：轴指针移动时把当前 x 轴（category 索引）对应的记录上报给父级
+function handleAxisPointerUpdate(params: any) {
+  const info = params?.axesInfo?.find((axis: any) => axis.axisDim === 'x') ?? params?.axesInfo?.[0]
+  if (!info)
+    return
+
+  const item = visibleData.value[Number(info.value)]
+  if (item && item.timestamp !== lastPreviewTimestamp) {
+    lastPreviewTimestamp = item.timestamp
+    emits('preview', item.timestamp)
   }
-})
+}
 
 function handleChartClick(params: any) {
-  if (params.dataIndex !== undefined) {
-    const clickedItem = visibleData.value[params.dataIndex]
-    if (clickedItem) {
-      // 发出只包含时间戳的事件
-      emits('timestamp-selected', clickedItem.timestamp)
-    }
-  }
+  if (params.dataIndex === undefined)
+    return
+
+  const clickedItem = visibleData.value[params.dataIndex]
+  if (clickedItem)
+    emits('timestamp-selected', clickedItem.timestamp)
 }
 </script>
 
 <template>
-  <div class="p-4 border border-gray-200 rounded-lg bg-white h-400px w-full shadow-sm dark:border-gray-700 dark:bg-gray-800">
-    <VChartFull :option="chartOption" autoresize @click="handleChartClick" />
+  <div class="h-340px w-full relative sm:h-430px">
+    <VChartFull
+      v-if="visibleData.length > 0"
+      ref="chartRef"
+      class="h-full w-full"
+      :option="chartOption"
+      autoresize
+      @update-axis-pointer="handleAxisPointerUpdate"
+      @click="handleChartClick"
+    />
+
+    <div v-else class="text-gray-400 border border-gray-200 rounded-xl border-dashed flex flex-col gap-1 h-full items-center justify-center dark:border-gray-700">
+      <div class="i-carbon-chart-line h-8 w-8" aria-hidden="true" />
+      <p class="text-sm">
+        当前范围内暂无可绘制的指标数据
+      </p>
+      <p class="text-xs">
+        夜间记录与指标缺失的记录不会出现在趋势图中
+      </p>
+    </div>
+
+    <p class="sr-only">
+      趋势图包含 {{ visibleData.length }} 个有效数据点，展示海蓝程度、云层覆盖率与能见度。
+    </p>
   </div>
 </template>
