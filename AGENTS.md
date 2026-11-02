@@ -62,7 +62,8 @@ interface AnalysisResult {
 ### Component Roles
 
 - `TrendChart` — ECharts line chart with zoom, hover-to-preview and click-to-select timestamp; 双 Y 轴（左 %，右 km），绘制海蓝程度、云层覆盖率、能见度三条曲线。
-- `TimelinePreview` — index 页的 3 视图联动预览；展示悬停时刻的原图 / 高清化 / 分类结果及关键指标，可打开详情或跳转图文工坊。
+- `TimelinePreview` — index 页的 3 视图联动预览；展示悬停时刻的原图 / 高清化 / 分类结果及关键指标，可打开详情或跳转图文工坊。三视图默认叠加地图标注（复用 `MapAnnotationOverlay`，`fit="slice"` 对齐 object-cover 图片），开关持久化到 `aqua:index-annotation-show`，样式配置与动画回放页共用 `aqua:annotation-config`。
+- `AnnotationSettings` — 标注样式设置组件（齿轮按钮 + 弹出面板），动画回放页 `PlaybackControls` 与首页 `TimelinePreview` 共用。
 - `MetricTile` — index 页的区间指标摘要卡，带图标、进度条与辅助说明。
 - `AnalysisCard` — single result card with before/after images; 能见度进度条按 km/35km 比例渲染（`VISIBILITY_MAX_KM`），`visibility_km` 为 null 的旧记录不展示该行。
 - `DebugResultViewer` — modal content for debug analysis results; 含能见度/大气浑浊度字段与 `05_dark_channel.png` 调试图。

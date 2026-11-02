@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime } from 'date-fns'
+import MapAnnotationOverlay from '~/components/animation/MapAnnotationOverlay.vue'
 
 const props = defineProps<{
   /** 当前预览的分析记录；null 表示暂无可预览数据 */
@@ -44,6 +45,11 @@ watch(() => props.result?.timestamp, () => {
 })
 
 const hasImages = computed(() => props.result?.status === 'completed' || props.result?.status === 'cloudy')
+
+// 地图标注：叠加陆地边界与城市点位（与动画回放页同一套叠加层与样式配置）。
+// 样式配置与动画页共用 aqua:annotation-config；开关独立持久化且默认开启
+const showAnnotation = useLocalStorage('aqua:index-annotation-show', true)
+const annotationConfig = useLocalStorage('aqua:annotation-config', defaultAnnotationConfig)
 
 const timeLabel = computed(() =>
   props.result
@@ -167,6 +173,23 @@ function openDetail() {
         <span class="text-xs font-medium px-2 py-1 rounded-full ring-1" :class="statusMeta.class">
           {{ statusMeta.label }}
         </span>
+        <template v-if="hasImages">
+          <div class="flex gap-1.5 items-center">
+            <button
+              :aria-pressed="showAnnotation"
+              title="在视图上叠加海岸线与城市标注"
+              class="text-sm px-3 py-1 border rounded-lg flex gap-1 transition-colors items-center"
+              :class="showAnnotation
+                ? 'text-teal-700 border-teal-200 bg-teal-50/60 dark:text-teal-300 dark:border-teal-800 dark:bg-teal-900/20'
+                : 'text-gray-600 border-gray-200 bg-white hover:bg-gray-50 dark:text-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700'"
+              @click="showAnnotation = !showAnnotation"
+            >
+              <div class="i-carbon-map h-3.5 w-3.5" aria-hidden="true" />
+              标注
+            </button>
+            <AnnotationSettings v-if="showAnnotation" v-model:config="annotationConfig" />
+          </div>
+        </template>
         <NuxtLink
           :to="shareLink"
           class="text-sm text-white px-3 py-1 rounded-lg bg-teal-600 flex gap-1 transition-colors items-center hover:bg-teal-700"
@@ -187,20 +210,30 @@ function openDetail() {
     <div v-if="result && hasImages" class="p-3 space-y-3 sm:p-5">
       <div class="gap-2 grid grid-cols-3 sm:gap-3">
         <figure v-for="view in views" :key="view.filename" class="min-w-0">
-          <div class="rounded-xl bg-gray-900 aspect-square ring-1 ring-black/5 relative overflow-hidden dark:ring-white/10">
-            <img
-              v-if="!failedImages[view.filename]"
-              :src="imageUrl(view.filename)"
-              :alt="`${view.label} · ${timeLabel}`"
-              loading="lazy"
-              decoding="async"
-              class="h-full w-full cursor-zoom-in transition-transform duration-300 object-cover hover:scale-[1.03]"
-              @error="failedImages[view.filename] = true"
-              @click="openPreview(view.filename)"
-            >
-            <div v-else class="text-gray-500 flex flex-col gap-1.5 h-full items-center justify-center">
-              <div :class="view.icon" class="h-6 w-6" aria-hidden="true" />
-              <span class="text-[10px] sm:text-xs">{{ view.label === '高清化' ? '该记录无高清化图' : '图片缺失' }}</span>
+          <div class="group rounded-xl bg-gray-900 aspect-square ring-1 ring-black/5 relative overflow-hidden dark:ring-white/10">
+            <!-- 悬停放大作用在包裹层上，使标注叠加层与图片同步缩放、保持对齐 -->
+            <div class="h-full w-full transition-transform duration-300 group-hover:scale-[1.03]">
+              <img
+                v-if="!failedImages[view.filename]"
+                :src="imageUrl(view.filename)"
+                :alt="`${view.label} · ${timeLabel}`"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full cursor-zoom-in object-cover"
+                @error="failedImages[view.filename] = true"
+                @click="openPreview(view.filename)"
+              >
+              <div v-else class="text-gray-500 flex flex-col gap-1.5 h-full items-center justify-center">
+                <div :class="view.icon" class="h-6 w-6" aria-hidden="true" />
+                <span class="text-[10px] sm:text-xs">{{ view.label === '高清化' ? '该记录无高清化图' : '图片缺失' }}</span>
+              </div>
+
+              <!-- 陆地边界与城市标注：缩略图为 object-cover，叠加层用 slice 缩放对齐 -->
+              <MapAnnotationOverlay
+                v-if="showAnnotation && !failedImages[view.filename]"
+                fit="slice"
+                :config="annotationConfig"
+              />
             </div>
 
             <span class="text-[10px] text-white px-1.5 py-0.5 rounded bg-black/55 left-1.5 top-1.5 backdrop-blur-sm sm:text-[11px] sm:left-2 sm:top-2">
