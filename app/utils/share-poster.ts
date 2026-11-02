@@ -1,6 +1,8 @@
+import type { AnnotationConfig } from './geo'
 import type { AnalysisResult } from '~/stores/analysis'
 import { format, fromUnixTime } from 'date-fns'
 import { BLUENESS_LEVELS, bluenessPercent, getBluenessLevel, VISIBILITY_MAX_KM } from './analysis-metrics'
+import { CITY_POINTS, defaultAnnotationConfig, loadMonitorLandPath, MAP_VIEW_H, MAP_VIEW_W, projectToMap } from './geo'
 
 export type PosterFormat = '3:4' | '9:16'
 export type PosterSlide = 'cover' | 'triple' | 'stats'
@@ -13,6 +15,10 @@ export interface PosterRenderInput {
   trendLabel: string
   apiUrl: string
   format: PosterFormat
+  /** 是否在封面与三视图的图片上叠加地图标注（海岸线 + 城市点位） */
+  annotate?: boolean
+  /** 标注样式配置（缺省字段落回默认值） */
+  annotationConfig?: AnnotationConfig
 }
 
 export interface PosterSize {
@@ -304,6 +310,105 @@ function drawImagePanel(
   ctx.restore()
 }
 
+/** 标注图层：海岸线路径 + 渲染配置，由 renderPosterSet 预取后传入各渲染函数 */
+interface AnnotationLayer {
+  landPath: string
+  config: AnnotationConfig
+}
+
+interface ImagePanelRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  radius: number
+}
+
+/**
+ * 图片以 cover 方式铺满面板时，viewBox 坐标 → 画布坐标的仿射参数。
+ * 管线输出图完整覆盖监测范围（宽高比 161:164），viewBox 单位分别按
+ * 图宽/161、图高/164 映射到图像像素，再叠加 cover 居中裁切的平移与缩放。
+ */
+function coverAffine(image: HTMLImageElement, panel: ImagePanelRect) {
+  const scale = Math.max(panel.width / image.width, panel.height / image.height)
+  const sourceX = (image.width - panel.width / scale) / 2
+  const sourceY = (image.height - panel.height / scale) / 2
+  return {
+    scaleX: scale * image.width / MAP_VIEW_W,
+    scaleY: scale * image.height / MAP_VIEW_H,
+    translateX: panel.x - sourceX * scale,
+    translateY: panel.y - sourceY * scale,
+  }
+}
+
+/** 在图片面板上叠加海岸线与城市点位（配色与 MapAnnotationOverlay、后端 01_input_annotated.png 一致） */
+function drawMapAnnotation(
+  ctx: Ctx,
+  image: HTMLImageElement,
+  panel: ImagePanelRect,
+  annotation: AnnotationLayer,
+) {
+  const { scaleX, scaleY, translateX, translateY } = coverAffine(image, panel)
+  const config = annotation.config
+
+  ctx.save()
+  // 裁剪到圆角面板：GeoJSON 中超出监测范围的边界不允许画到面板外
+  roundedRect(ctx, panel.x, panel.y, panel.width, panel.height, panel.radius)
+  ctx.clip()
+  ctx.transform(scaleX, 0, 0, scaleY, translateX, translateY)
+  ctx.lineJoin = 'round'
+
+  // 陆地边界：黑色光晕 + 主描边（光晕保持与 SVG 叠加层一致的约 3:1 比例，不少于 1.5）
+  if (annotation.landPath) {
+    const land = new Path2D(annotation.landPath)
+    ctx.strokeStyle = '#000'
+    ctx.globalAlpha = 0.55
+    ctx.lineWidth = Math.max(1.5, config.lineWidth * 3)
+    ctx.stroke(land)
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = config.lineColor
+    ctx.lineWidth = config.lineWidth
+    ctx.stroke(land)
+  }
+
+  // 城市点位：白环红点 + 白描边名称（与后端 CITY_MARKER 配色一致）
+  for (const city of CITY_POINTS) {
+    const { x, y } = projectToMap(city.lat, city.lon)
+    ctx.beginPath()
+    ctx.arc(x, y, 1.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(x, y, 0.9, 0, Math.PI * 2)
+    ctx.fillStyle = '#ff2d2d'
+    ctx.fill()
+
+    if (!config.showCityNames)
+      continue
+    const anchor = city.anchor ?? 'start'
+    const labelX = x + (city.dx ?? (anchor === 'end'
+      ? -2.2
+      : anchor === 'middle'
+        ? 0
+        : 2.2))
+    const labelY = y + (city.dy ?? 1)
+    setFont(ctx, config.fontSize, '600')
+    ctx.textAlign = anchor === 'end'
+      ? 'right'
+      : anchor === 'middle'
+        ? 'center'
+        : 'left'
+    ctx.textBaseline = 'alphabetic'
+    ctx.lineWidth = 1.2
+    ctx.strokeStyle = '#fff'
+    ctx.strokeText(city.name, labelX, labelY)
+    ctx.fillStyle = config.labelColor
+    ctx.fillText(city.name, labelX, labelY)
+  }
+
+  ctx.restore()
+}
+
 function drawMetric(ctx: Ctx, x: number, y: number, label: string, value: string, color: string) {
   drawText(ctx, label, x, y, 22, PALETTE.muted)
   drawText(ctx, value, x, y + 54, 44, color, { weight: '700' })
@@ -522,7 +627,13 @@ function hazeLabel(result: AnalysisResult) {
     : result.haze_score.toFixed(2)
 }
 
-function renderCover(input: PosterRenderInput, image: HTMLImageElement | null, size: PosterSize) {
+function renderCover(
+  input: PosterRenderInput,
+  image: HTMLImageElement | null,
+  size: PosterSize,
+  annotation: AnnotationLayer | null,
+  coverLabel: string,
+) {
   const { canvas, ctx } = makeCanvas(size.width, size.height)
   const { width, height } = size
   const padding = 72
@@ -553,7 +664,16 @@ function renderCover(input: PosterRenderInput, image: HTMLImageElement | null, s
     ? 780
     : 540
   drawImagePanel(ctx, image, padding, imageY, contentWidth, imageHeight, 28)
-  drawOverlayChip(ctx, padding + 24, imageY + 24, '卫星原图', 18)
+  if (image && annotation) {
+    drawMapAnnotation(ctx, image, {
+      x: padding,
+      y: imageY,
+      width: contentWidth,
+      height: imageHeight,
+      radius: 28,
+    }, annotation)
+  }
+  drawOverlayChip(ctx, padding + 24, imageY + 24, coverLabel, 18)
 
   const metricsY = imageY + imageHeight + 90
   drawMetric(ctx, padding, metricsY, '云层覆盖率', formatPercent(cloudPercent(input.result)), PALETTE.slate)
@@ -611,6 +731,7 @@ function renderTriple(
   input: PosterRenderInput,
   images: Array<HTMLImageElement | null>,
   size: PosterSize,
+  annotation: AnnotationLayer | null,
 ) {
   const { canvas, ctx } = makeCanvas(size.width, size.height)
   const { width, height } = size
@@ -660,6 +781,15 @@ function renderTriple(
       if (!view || !position)
         return
       drawImagePanel(ctx, image, position.x, position.y, cell, cell, 20)
+      if (image && annotation) {
+        drawMapAnnotation(ctx, image, {
+          x: position.x,
+          y: position.y,
+          width: cell,
+          height: cell,
+          radius: 20,
+        }, annotation)
+      }
       drawOverlayChip(ctx, position.x + 16, position.y + 16, view.label, 18)
     })
 
@@ -676,6 +806,15 @@ function renderTriple(
         return
       const x = padding + index * (imageWidth + gap)
       drawImagePanel(ctx, image, x, imageY, imageWidth, imageWidth, 20)
+      if (image && annotation) {
+        drawMapAnnotation(ctx, image, {
+          x,
+          y: imageY,
+          width: imageWidth,
+          height: imageWidth,
+          radius: 20,
+        }, annotation)
+      }
       drawOverlayChip(ctx, x + 16, imageY + 16, view.label, 18)
       drawText(ctx, view.detail, x + imageWidth / 2, imageY + imageWidth + 38, 22, PALETTE.muted, { align: 'center' })
     })
@@ -782,9 +921,24 @@ export async function renderPosterSet(input: PosterRenderInput): Promise<PosterU
   ])
   const size = posterSize(input.format)
 
+  // 封面优先使用高清化图；旧记录无 01b 图时回落卫星原图
+  const coverImage = superImage ?? inputImage
+  const coverLabel = superImage ? '卫星高清影像' : '卫星原图'
+
+  // 标注开启时预取海岸线路径（加载失败返回空串，城市点位仍会绘制）
+  const annotation = input.annotate
+    ? {
+        landPath: await loadMonitorLandPath(),
+        config: {
+          ...defaultAnnotationConfig,
+          ...input.annotationConfig,
+        },
+      }
+    : null
+
   return {
-    cover: renderCover(input, inputImage, size).toDataURL('image/png'),
-    triple: renderTriple(input, [inputImage, superImage, classImage], size).toDataURL('image/png'),
+    cover: renderCover(input, coverImage, size, annotation, coverLabel).toDataURL('image/png'),
+    triple: renderTriple(input, [inputImage, superImage, classImage], size, annotation).toDataURL('image/png'),
     stats: renderStats(input, size).toDataURL('image/png'),
   }
 }

@@ -31,9 +31,20 @@ export interface CityPoint {
 }
 
 export const CITY_POINTS: CityPoint[] = [
-  { name: '枸杞岛', lon: 122.818, lat: 30.722, anchor: 'end' },
+  {
+    name: '枸杞岛',
+    lon: 122.818,
+    lat: 30.722,
+    anchor: 'end',
+  },
   // 嵊泗与枸杞岛几乎同纬度且相邻，名称改排到点位下方避免互相挤占
-  { name: '嵊泗', lon: 122.451, lat: 30.735, anchor: 'middle', dy: 4 },
+  {
+    name: '嵊泗',
+    lon: 122.451,
+    lat: 30.735,
+    anchor: 'middle',
+    dy: 4,
+  },
   { name: '洋山港', lon: 122.064, lat: 30.633 },
   { name: '岱山', lon: 122.204, lat: 30.243 },
   { name: '定海', lon: 122.107, lat: 30.020 },
@@ -81,4 +92,58 @@ export function projectToMap(lat: number, lon: number): { x: number, y: number }
   const x = ((lon - MONITOR_BOUNDS.west) / (MONITOR_BOUNDS.east - MONITOR_BOUNDS.west)) * MAP_VIEW_W
   const y = ((mercatorY(lat) - mercNorth) / (mercSouth - mercNorth)) * MAP_VIEW_H
   return { x, y }
+}
+
+interface GeoPolygon {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: number[][][] | number[][][][]
+}
+
+interface GeoFeature {
+  geometry: GeoPolygon
+}
+
+// 陆地边界 SVG path（viewBox 坐标，可直接用于 <path :d> 与 Path2D）。
+// 模块级缓存：动画回放三图视图、首页三视图与分享海报共享同一次 fetch 与解析。
+let landPathPromise: Promise<string> | null = null
+
+export function loadMonitorLandPath(): Promise<string> {
+  landPathPromise ??= fetch('/geo/monitor_area.geojson')
+    .then(res => res.json() as Promise<{ features: GeoFeature[] }>)
+    .then((geojson) => {
+      const d: string[] = []
+      for (const feature of geojson.features) {
+        const geom = feature.geometry
+        if (!geom)
+          continue
+        const polygons: number[][][][] = geom.type === 'MultiPolygon'
+          ? geom.coordinates as number[][][][]
+          : [geom.coordinates as number[][][]]
+        for (const polygon of polygons) {
+          // 外包矩形预过滤：跳过与监测范围完全不相交的多边形（与后端一致）
+          const pts = polygon.flat()
+          const lons = pts.map(p => p[0]!)
+          const lats = pts.map(p => p[1]!)
+          if (Math.max(...lons) < MONITOR_BOUNDS.west || Math.min(...lons) > MONITOR_BOUNDS.east
+            || Math.max(...lats) < MONITOR_BOUNDS.south || Math.min(...lats) > MONITOR_BOUNDS.north) {
+            continue
+          }
+          for (const ring of polygon) {
+            if (ring.length < 3)
+              continue
+            const seg = ring.map(([lon, lat]) => {
+              const { x, y } = projectToMap(lat!, lon!)
+              return `${x.toFixed(1)} ${y.toFixed(1)}`
+            })
+            d.push(`M${seg.join('L')}Z`)
+          }
+        }
+      }
+      return d.join('')
+    })
+    .catch((err) => {
+      console.warn('[geo] 陆地边界数据加载失败', err)
+      return ''
+    })
+  return landPathPromise
 }

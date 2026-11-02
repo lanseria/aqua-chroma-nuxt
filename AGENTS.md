@@ -54,7 +54,7 @@ interface AnalysisResult {
 
 - `app/pages/index.vue` — realtime overview dashboard; 区间指标摘要、重设计后的趋势图，以及悬停曲线联动的三视图 (`TimelinePreview`) 预览。
 - `app/pages/history.vue` — 历史记录页；包含无限滚动卡片网格、单点调试、批量下载与详情弹窗。
-- `app/pages/share.vue` — 图文工坊；选择观测时刻生成 3:4 / 9:16 社交海报（封面 / 三视图 / 数据），支持编辑文案、单张下载和 ZIP 打包。
+- `app/pages/share.vue` — 图文工坊；选择观测时刻生成 3:4 / 9:16 社交海报（封面 / 三视图 / 数据），支持编辑文案、单张下载和 ZIP 打包。封面优先使用高清化图（无 01b 图的旧记录回落卫星原图）；封面与三视图的图片可叠加地图标注（`aqua:share-annotation-show`，默认开启，样式配置共用 `aqua:annotation-config`）。
 - `app/pages/animation.vue` — 动画回放页。
 - `app/pages/[...all].vue` — catch-all route.
 - `app/layouts/default.vue` — includes navigation (`/share`, `/history`, `/animation`), `ThemeToggle` and `ProgressBar`.
@@ -70,7 +70,7 @@ interface AnalysisResult {
 - `ThemeToggle` — dark/light switch synced with Arco Design.
 - `ProgressBar` — top-of-page loading progress indicator; 支持 `displayValue` 覆盖右侧百分比文案（能见度显示 km）。
 - `app/utils/analysis-metrics.ts` — 趋势图、区间摘要与分享海报共享的取值、海蓝分级、过滤与统计口径。
-- `app/utils/share-poster.ts` — Canvas 海报渲染（封面 / 三视图 / 数据）与社交文案生成。
+- `app/utils/share-poster.ts` — Canvas 海报渲染（封面 / 三视图 / 数据）与社交文案生成；封面与三视图图片支持叠加地图标注（`coverAffine` 把 viewBox 投影对齐到 cover 裁切后的图片像素）。
 
 ### Database Access
 

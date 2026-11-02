@@ -5,15 +5,6 @@
 // viewBox 宽高比与 pipeline 输出图一致，preserveAspectRatio 随 fit 参数
 // （meet 对齐 object-contain 图片，slice 对齐 object-cover 图片）逐像素对齐。
 
-interface GeoPolygon {
-  type: 'Polygon' | 'MultiPolygon'
-  coordinates: number[][][] | number[][][][]
-}
-
-interface GeoFeature {
-  geometry: GeoPolygon
-}
-
 const props = defineProps<{
   /** 渲染配置（缺省字段落回默认值） */
   config?: AnnotationConfig
@@ -23,54 +14,11 @@ const props = defineProps<{
 
 const preserveAspectRatio = computed(() => `xMidYMid ${props.fit ?? 'meet'}`)
 
-// 陆地边界 path（模块级缓存：三图同步视图下三个叠加层实例共享同一次 fetch 与解析）
+// 陆地边界 path（loadMonitorLandPath 模块级缓存：三图同步视图下多个叠加层实例共享同一次 fetch 与解析）
 const landPath = shallowRef('')
 
-let landPathPromise: Promise<string> | null = null
-
-async function loadLandPath(): Promise<string> {
-  landPathPromise ??= fetch('/geo/monitor_area.geojson')
-    .then(res => res.json() as Promise<{ features: GeoFeature[] }>)
-    .then((geojson) => {
-      const d: string[] = []
-      for (const feature of geojson.features) {
-        const geom = feature.geometry
-        if (!geom)
-          continue
-        const polygons: number[][][][] = geom.type === 'MultiPolygon'
-          ? geom.coordinates as number[][][][]
-          : [geom.coordinates as number[][][]]
-        for (const polygon of polygons) {
-          // 外包矩形预过滤：跳过与监测范围完全不相交的多边形（与后端一致）
-          const pts = polygon.flat()
-          const lons = pts.map(p => p[0]!)
-          const lats = pts.map(p => p[1]!)
-          if (Math.max(...lons) < MONITOR_BOUNDS.west || Math.min(...lons) > MONITOR_BOUNDS.east
-            || Math.max(...lats) < MONITOR_BOUNDS.south || Math.min(...lats) > MONITOR_BOUNDS.north) {
-            continue
-          }
-          for (const ring of polygon) {
-            if (ring.length < 3)
-              continue
-            const seg = ring.map(([lon, lat]) => {
-              const { x, y } = projectToMap(lat!, lon!)
-              return `${x.toFixed(1)} ${y.toFixed(1)}`
-            })
-            d.push(`M${seg.join('L')}Z`)
-          }
-        }
-      }
-      return d.join('')
-    })
-    .catch((err) => {
-      console.warn('[MapAnnotationOverlay] 陆地边界数据加载失败', err)
-      return ''
-    })
-  return landPathPromise
-}
-
 onMounted(async () => {
-  landPath.value = await loadLandPath()
+  landPath.value = await loadMonitorLandPath()
 })
 
 // 渲染配置：合并默认值，保证旧 localStorage 数据缺少新字段时仍可渲染

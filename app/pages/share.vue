@@ -42,15 +42,20 @@ const recordOptions = computed(() => {
   return recent
 })
 
-const formatValue = ref<string>('3:4')
+const formatValue = ref<string>('9:16')
 const posterFormat = computed<PosterFormat>(() => formatValue.value === '9:16'
   ? '9:16'
   : '3:4')
 const formatOptions = [
-  { label: '3:4 竖版', value: '3:4' },
   { label: '9:16 全屏', value: '9:16' },
+  { label: '3:4 竖版', value: '3:4' },
 ]
 const currentPosterSize = computed(() => posterSize(posterFormat.value))
+
+// 海报图片标注：叠加海岸线与城市点位，默认开启，可关闭。
+// 样式配置与动画回放页、首页三视图共用 aqua:annotation-config
+const annotate = useLocalStorage('aqua:share-annotation-show', true)
+const annotationConfig = useLocalStorage('aqua:annotation-config', defaultAnnotationConfig)
 
 const slides: Array<{ key: PosterSlide, label: string, hint: string }> = [
   { key: 'cover', label: '封面', hint: '首图' },
@@ -136,7 +141,12 @@ watch(selectedTimestamp, (timestamp) => {
   })
 })
 
-watch([selectedResult, posterFormat], () => {
+watch([
+  selectedResult,
+  posterFormat,
+  annotate,
+  annotationConfig,
+], () => {
   void renderPosters()
 })
 
@@ -191,6 +201,8 @@ async function renderPosters() {
       trendLabel: trend.label,
       apiUrl,
       format: posterFormat.value,
+      annotate: annotate.value,
+      annotationConfig: annotationConfig.value,
     })
 
     if (token === renderToken)
@@ -328,7 +340,7 @@ onMounted(async () => {
 
     <!-- 选择观测时刻与画幅 -->
     <section class="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <div class="gap-3 grid lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
+      <div class="gap-3 grid lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
         <div class="min-w-0">
           <label for="share-record" class="text-xs text-gray-500 dark:text-gray-400">观测时刻</label>
           <select
@@ -347,6 +359,24 @@ onMounted(async () => {
           <span class="text-xs text-gray-500 dark:text-gray-400">画幅</span>
           <div class="mt-1">
             <ButtonGroup v-model="formatValue" :options="formatOptions" />
+          </div>
+        </div>
+
+        <div>
+          <span class="text-xs text-gray-500 dark:text-gray-400">图片标注</span>
+          <div class="mt-1 flex gap-1.5 items-center">
+            <button
+              :aria-pressed="annotate"
+              title="在封面与三视图的图片上叠加海岸线与城市标注"
+              class="text-sm px-3 py-1.5 border rounded-lg cursor-pointer transition-colors duration-150"
+              :class="annotate
+                ? 'bg-teal-600 text-white border-teal-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'"
+              @click="annotate = !annotate"
+            >
+              {{ annotate ? '海岸线与城市' : '关闭' }}
+            </button>
+            <AnnotationSettings v-if="annotate" v-model:config="annotationConfig" />
           </div>
         </div>
 
